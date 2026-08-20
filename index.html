@@ -6,26 +6,36 @@
   <title>새찬송가</title>
   <style>
     :root {
+      /* 기본 다크모드 (OLED 블랙) */
+      --bg: #000000;
+      --text: #ffffff;
+      --sub-text: #a1a1aa;
+      --card-bg: #121212;
+      --primary: #60a5fa;
+      --border: #27272a;
+      --star-color: #f59e0b;
+    }
+
+    body.light-mode {
       --bg: #ffffff;
       --text: #191f28;
       --sub-text: #8b95a1;
       --card-bg: #f9fafb;
       --primary: #2563eb;
       --border: #e5e8eb;
-      --star-color: #f59e0b;
     }
-    body.dark-mode {
-      --bg: #121212;
-      --text: #f3f4f6;
-      --sub-text: #9ca3af;
-      --card-bg: #1e1e1e;
-      --primary: #60a5fa;
-      --border: #2e2e2e;
+
+    /* 자간(글자간격)은 넓히지 않고 기본 유지 */
+    * { 
+      box-sizing: border-box; 
+      margin: 0; 
+      padding: 0; 
+      font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", Pretendard, sans-serif; 
+      letter-spacing: normal;
     }
-    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", Pretendard, sans-serif; }
     body { background: var(--bg); color: var(--text); user-select: none; }
 
-    /* 상단 헤더 & 검색창 */
+    /* 상단 헤더 (기존 박스 크기/여백 유지) */
     header {
       position: sticky;
       top: 0;
@@ -36,16 +46,22 @@
       gap: 10px;
       z-index: 100;
     }
+
+    /* 검색 박스: 흰색 바탕에 검은색 글자 */
     .search-input {
       flex: 1;
       padding: 12px 14px;
-      border: 1px solid var(--border);
+      border: 1px solid #ffffff;
       border-radius: 10px;
-      font-size: 16px;
-      background: var(--card-bg);
-      color: var(--text);
+      font-size: 18px;
+      background-color: #ffffff !important;
+      color: #000000 !important;
       outline: none;
     }
+    .search-input::placeholder {
+      color: #666666;
+    }
+
     .btn-icon {
       padding: 0 14px;
       background: var(--card-bg);
@@ -56,7 +72,7 @@
       color: var(--text);
     }
 
-    /* 탭 메뉴 (전체 / 즐겨찾기) */
+    /* 탭 메뉴 */
     .tabs {
       display: flex;
       border-bottom: 1px solid var(--border);
@@ -66,7 +82,7 @@
       flex: 1;
       text-align: center;
       padding: 12px 0;
-      font-size: 16px;
+      font-size: 19px;
       font-weight: bold;
       color: var(--sub-text);
       cursor: pointer;
@@ -76,7 +92,7 @@
       border-bottom: 3px solid var(--primary);
     }
 
-    /* 리스트 */
+    /* 리스트 (글자 크기 기존 17px -> 125% 확대하여 21px 적용) */
     .list-view {
       padding: 6px 0;
       max-height: calc(100vh - 125px);
@@ -85,30 +101,30 @@
     .hymn-card {
       display: flex;
       align-items: center;
-      padding: 16px 20px;
+      padding: 18px 20px;
       border-bottom: 1px solid var(--border);
       cursor: pointer;
     }
     .hymn-num {
-      width: 55px;
-      font-size: 17px;
+      width: 65px;
+      font-size: 21px;
       font-weight: bold;
       color: var(--primary);
     }
     .hymn-title {
       flex: 1;
-      font-size: 17px;
+      font-size: 21px;
       font-weight: 500;
     }
     .star-icon {
-      font-size: 22px;
-      color: #d1d5db;
+      font-size: 24px;
+      color: #4b5563;
     }
     .star-icon.active {
       color: var(--star-color);
     }
 
-    /* 가사 상세 화면 (뷰어) */
+    /* 가사 상세 화면 (가사 크기 기존 22px -> 125% 확대하여 28px 기본 적용) */
     #viewer {
       display: none;
       position: fixed;
@@ -123,9 +139,10 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
+      background: var(--bg);
     }
     .viewer-title {
-      font-size: 18px;
+      font-size: 21px;
       font-weight: bold;
       max-width: 50%;
       white-space: nowrap;
@@ -142,7 +159,7 @@
       background: var(--card-bg);
       color: var(--text);
       border-radius: 6px;
-      font-size: 14px;
+      font-size: 15px;
       font-weight: bold;
       cursor: pointer;
     }
@@ -151,16 +168,17 @@
       padding: 24px 20px;
       overflow-y: auto;
       white-space: pre-wrap;
-      line-height: 1.7;
+      line-height: 1.6;
+      letter-spacing: normal;
     }
   </style>
 </head>
 <body>
 
-  <!-- 상단 검색바 -->
+  <!-- 상단 검색바 (흰색 바탕 / 검은 글자) -->
   <header>
-    <input type="text" id="searchInput" class="search-input" placeholder="장 번호(숫자), 제목, 가사 검색">
-    <button class="btn-icon" onclick="toggleDarkMode()">🌙</button>
+    <input type="text" id="searchInput" class="search-input" placeholder="장 번호, 제목, 가사 검색">
+    <button class="btn-icon" onclick="toggleTheme()">☀️/🌙</button>
   </header>
 
   <!-- 탭 메뉴 -->
@@ -190,10 +208,10 @@
     let hymns = [];
     let currentTab = 'all';
     let currentHymn = null;
-    let fontSize = parseInt(localStorage.getItem('hymn_size') || '22', 10);
+    // 기본 글자 크기 125% 확대하여 28px로 적용
+    let fontSize = parseInt(localStorage.getItem('hymn_size') || '28', 10);
     let favorites = JSON.parse(localStorage.getItem('hymn_favs') || '[]');
 
-    // hymns.json 데이터 불러오기
     fetch('hymns.json')
       .then(res => res.json())
       .then(data => {
@@ -201,10 +219,9 @@
         render();
       })
       .catch(err => {
-        alert('hymns.json 파일을 불러오지 못했습니다. 같은 폴더에 있는지 확인해주세요.');
+        alert('hymns.json 파일을 불러오지 못했습니다.');
       });
 
-    // 목록 화면 표시
     function render() {
       const list = document.getElementById('hymnList');
       const q = document.getElementById('searchInput').value.trim().toLowerCase();
@@ -238,7 +255,6 @@
       });
     }
 
-    // 뷰어 열기
     function openViewer(h) {
       currentHymn = h;
       document.getElementById('viewerTitle').innerText = `${h.num}장 ${h.title}`;
@@ -255,7 +271,6 @@
       render();
     }
 
-    // 즐겨찾기 토글
     function toggleFavCurrent() {
       if (!currentHymn) return;
       const idx = favorites.indexOf(currentHymn.num);
@@ -272,19 +287,16 @@
       star.style.color = isFav ? '#f59e0b' : 'inherit';
     }
 
-    // 글자 크기
     function changeFontSize(val) {
-      fontSize = Math.min(Math.max(16, fontSize + val), 40);
+      fontSize = Math.min(Math.max(18, fontSize + val), 48);
       document.getElementById('viewerLyrics').style.fontSize = fontSize + 'px';
       localStorage.setItem('hymn_size', fontSize);
     }
 
-    // 다크모드
-    function toggleDarkMode() {
-      document.body.classList.toggle('dark-mode');
+    function toggleTheme() {
+      document.body.classList.toggle('light-mode');
     }
 
-    // 탭 전환
     function changeTab(tab) {
       currentTab = tab;
       document.getElementById('tabAll').className = 'tab ' + (tab === 'all' ? 'active' : '');
