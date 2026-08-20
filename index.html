@@ -6,7 +6,6 @@
   <title>새찬송가</title>
   <style>
     :root {
-      /* 기본 다크모드 (OLED 블랙) */
       --bg: #000000;
       --text: #ffffff;
       --sub-text: #a1a1aa;
@@ -15,183 +14,71 @@
       --border: #27272a;
       --star-color: #f59e0b;
     }
-
     body.light-mode {
-      --bg: #ffffff;
-      --text: #191f28;
-      --sub-text: #8b95a1;
-      --card-bg: #f9fafb;
-      --primary: #2563eb;
-      --border: #e5e8eb;
+      --bg: #ffffff; --text: #191f28; --sub-text: #8b95a1;
+      --card-bg: #f9fafb; --primary: #2563eb; --border: #e5e8eb;
     }
-
-    * { 
-      box-sizing: border-box; 
-      margin: 0; 
-      padding: 0; 
-      font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", Pretendard, sans-serif; 
-      letter-spacing: normal;
-    }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: sans-serif; letter-spacing: normal; }
     body { background: var(--bg); color: var(--text); user-select: none; }
 
-    /* 상단 헤더 */
     header {
-      position: sticky;
-      top: 0;
-      background: var(--bg);
+      position: sticky; top: 0; background: var(--bg);
       border-bottom: 1px solid var(--border);
-      padding: 12px 16px;
-      display: flex;
-      gap: 10px;
-      z-index: 100;
+      padding: 10px 16px; display: flex; gap: 10px; z-index: 100;
     }
-
-    /* 검색 박스 (흰색 바탕 / 검은 글자) */
     .search-input {
-      flex: 1;
-      padding: 12px 14px;
-      border: 1px solid #ffffff;
-      border-radius: 10px;
-      font-size: 18px;
-      background-color: #ffffff !important;
-      color: #000000 !important;
-      outline: none;
+      flex: 1; padding: 10px 14px; border: 1px solid #ffffff;
+      border-radius: 8px; font-size: 18px;
+      background-color: #ffffff !important; color: #000000 !important; outline: none;
     }
-    .search-input::placeholder {
-      color: #666666;
-    }
-
     .btn-icon {
-      padding: 0 14px;
-      background: var(--card-bg);
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      font-size: 18px;
-      cursor: pointer;
-      color: var(--text);
+      padding: 0 14px; background: var(--card-bg); border: 1px solid var(--border);
+      border-radius: 8px; font-size: 18px; cursor: pointer; color: var(--text);
     }
+    .tabs { display: flex; border-bottom: 1px solid var(--border); background: var(--bg); }
+    .tab { flex: 1; text-align: center; padding: 8px 0; font-size: 19px; font-weight: bold; color: var(--sub-text); cursor: pointer; }
+    .tab.active { color: var(--primary); border-bottom: 3px solid var(--primary); }
 
-    /* 탭 메뉴 */
-    .tabs {
-      display: flex;
-      border-bottom: 1px solid var(--border);
-      background: var(--bg);
-    }
-    .tab {
-      flex: 1;
-      text-align: center;
-      padding: 10px 0;
-      font-size: 19px;
-      font-weight: bold;
-      color: var(--sub-text);
-      cursor: pointer;
-    }
-    .tab.active {
-      color: var(--primary);
-      border-bottom: 3px solid var(--primary);
-    }
-
-    /* 리스트 */
-    .list-view {
-      padding: 2px 0;
-      max-height: calc(100vh - 120px);
-      overflow-y: auto;
-    }
+    .list-view { padding: 0; max-height: calc(100vh - 110px); overflow-y: auto; }
     
-    /* 1장, 2장, 3장... 줄 간격을 기존의 절반(8px)으로 축소 */
+    /* [간격 대폭 축소] 위아래 여백을 4px로 줄여서 바짝 붙였습니다 */
     .hymn-card {
       display: flex;
       align-items: center;
-      padding: 8px 16px; /* 위아래 여백을 절반으로 줄임 */
+      padding: 4px 16px; 
+      min-height: 48px; /* 터치하기 불편하지 않을 정도의 최소 높이만 유지 */
       border-bottom: 1px solid var(--border);
       cursor: pointer;
     }
-    .hymn-num {
-      width: 65px;
-      font-size: 21px;
-      font-weight: bold;
-      color: var(--primary);
-    }
-    .hymn-title {
-      flex: 1;
-      font-size: 21px;
-      font-weight: 500;
-    }
-    .star-icon {
-      font-size: 22px;
-      color: #4b5563;
-    }
-    .star-icon.active {
-      color: var(--star-color);
-    }
+    .hymn-num { width: 65px; font-size: 21px; font-weight: bold; color: var(--primary); }
+    .hymn-title { flex: 1; font-size: 21px; font-weight: 500; }
+    .star-icon { font-size: 22px; color: #4b5563; }
+    .star-icon.active { color: var(--star-color); }
 
-    /* 가사 상세 화면 */
     #viewer {
-      display: none;
-      position: fixed;
-      top: 0; left: 0; width: 100%; height: 100%;
-      background: var(--bg);
-      flex-direction: column;
-      z-index: 200;
+      display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      background: var(--bg); flex-direction: column; z-index: 200;
     }
     .viewer-header {
-      padding: 12px 16px;
-      border-bottom: 1px solid var(--border);
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      background: var(--bg);
+      padding: 12px 16px; border-bottom: 1px solid var(--border);
+      display: flex; justify-content: space-between; align-items: center; background: var(--bg);
     }
-    .viewer-title {
-      font-size: 21px;
-      font-weight: bold;
-      max-width: 50%;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-    .font-btns {
-      display: flex;
-      gap: 6px;
-    }
-    .font-btns button {
-      padding: 6px 10px;
-      border: 1px solid var(--border);
-      background: var(--card-bg);
-      color: var(--text);
-      border-radius: 6px;
-      font-size: 15px;
-      font-weight: bold;
-      cursor: pointer;
-    }
-    .viewer-lyrics {
-      flex: 1;
-      padding: 24px 20px;
-      overflow-y: auto;
-      white-space: pre-wrap;
-      line-height: 1.6;
-      letter-spacing: normal;
-    }
+    .viewer-title { font-size: 21px; font-weight: bold; max-width: 55%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .font-btns { display: flex; gap: 6px; }
+    .font-btns button { padding: 6px 10px; border: 1px solid var(--border); background: var(--card-bg); color: var(--text); border-radius: 6px; font-size: 15px; font-weight: bold; cursor: pointer; }
+    .viewer-lyrics { flex: 1; padding: 24px 20px; overflow-y: auto; white-space: pre-wrap; line-height: 1.5; font-size: 28px; }
   </style>
 </head>
 <body>
-
-  <!-- 상단 검색바 -->
   <header>
-    <input type="text" id="searchInput" class="search-input" placeholder="장 번호, 제목, 가사 검색">
+    <input type="text" id="searchInput" class="search-input" placeholder="검색어 입력">
     <button class="btn-icon" onclick="toggleTheme()">☀️/🌙</button>
   </header>
-
-  <!-- 탭 메뉴 -->
   <div class="tabs">
-    <div class="tab active" id="tabAll" onclick="changeTab('all')">전체 찬송가</div>
+    <div class="tab active" id="tabAll" onclick="changeTab('all')">전체</div>
     <div class="tab" id="tabFav" onclick="changeTab('fav')">⭐ 즐겨찾기</div>
   </div>
-
-  <!-- 찬송가 목록 -->
   <div class="list-view" id="hymnList"></div>
-
-  <!-- 가사 뷰어 -->
   <div id="viewer">
     <div class="viewer-header">
       <button class="font-btns" style="padding: 8px 14px;" onclick="closeViewer()">⬅ 뒤로</button>
@@ -199,7 +86,7 @@
       <div class="font-btns">
         <button onclick="changeFontSize(-2)">가-</button>
         <button onclick="changeFontSize(2)">가+</button>
-        <button id="viewerStar" onclick="toggleFavCurrent()" style="font-size:16px;">★</button>
+        <button id="viewerStar" onclick="toggleFavCurrent()">★</button>
       </div>
     </div>
     <div class="viewer-lyrics" id="viewerLyrics"></div>
@@ -212,44 +99,22 @@
     let fontSize = parseInt(localStorage.getItem('hymn_size') || '28', 10);
     let favorites = JSON.parse(localStorage.getItem('hymn_favs') || '[]');
 
-    fetch('hymns.json')
+    fetch('hymns.json?v=1') // 캐시 방지를 위해 버전 추가
       .then(res => res.json())
-      .then(data => {
-        hymns = data;
-        render();
-      })
-      .catch(err => {
-        alert('hymns.json 파일을 불러오지 못했습니다.');
-      });
+      .then(data => { hymns = data; render(); });
 
     function render() {
       const list = document.getElementById('hymnList');
       const q = document.getElementById('searchInput').value.trim().toLowerCase();
       list.innerHTML = '';
-
       const filtered = hymns.filter(h => {
-        const isFav = favorites.includes(h.num);
-        if (currentTab === 'fav' && !isFav) return false;
-        if (!q) return true;
-
-        return h.num.toString() === q ||
-               h.title.toLowerCase().includes(q) ||
-               h.lyrics.toLowerCase().includes(q);
+        if (currentTab === 'fav' && !favorites.includes(h.num)) return false;
+        return !q || h.num.toString() === q || h.title.includes(q) || h.lyrics.includes(q);
       });
-
-      if (filtered.length === 0) {
-        list.innerHTML = '<div style="text-align:center; padding: 40px; color: var(--sub-text);">검색 결과가 없습니다.</div>';
-        return;
-      }
-
       filtered.forEach(h => {
         const item = document.createElement('div');
         item.className = 'hymn-card';
-        item.innerHTML = `
-          <div class="hymn-num">${h.num}장</div>
-          <div class="hymn-title">${h.title}</div>
-          <div class="star-icon ${favorites.includes(h.num) ? 'active' : ''}">★</div>
-        `;
+        item.innerHTML = `<div class="hymn-num">${h.num}장</div><div class="hymn-title">${h.title}</div><div class="star-icon ${favorites.includes(h.num)?'active':''}">★</div>`;
         item.onclick = () => openViewer(h);
         list.appendChild(item);
       });
@@ -258,52 +123,31 @@
     function openViewer(h) {
       currentHymn = h;
       document.getElementById('viewerTitle').innerText = `${h.num}장 ${h.title}`;
-      const lyricsBox = document.getElementById('viewerLyrics');
-      lyricsBox.innerText = h.lyrics;
-      lyricsBox.style.fontSize = fontSize + 'px';
-
-      updateViewerStar();
+      const lb = document.getElementById('viewerLyrics');
+      lb.innerText = h.lyrics;
+      lb.style.fontSize = fontSize + 'px';
+      document.getElementById('viewerStar').style.color = favorites.includes(h.num) ? '#f59e0b' : 'inherit';
       document.getElementById('viewer').style.display = 'flex';
     }
-
-    function closeViewer() {
-      document.getElementById('viewer').style.display = 'none';
-      render();
-    }
-
+    function closeViewer() { document.getElementById('viewer').style.display = 'none'; render(); }
     function toggleFavCurrent() {
-      if (!currentHymn) return;
       const idx = favorites.indexOf(currentHymn.num);
-      if (idx > -1) favorites.splice(idx, 1);
-      else favorites.push(currentHymn.num);
-
+      if (idx > -1) favorites.splice(idx, 1); else favorites.push(currentHymn.num);
       localStorage.setItem('hymn_favs', JSON.stringify(favorites));
-      updateViewerStar();
+      document.getElementById('viewerStar').style.color = favorites.includes(currentHymn.num) ? '#f59e0b' : 'inherit';
     }
-
-    function updateViewerStar() {
-      const star = document.getElementById('viewerStar');
-      const isFav = favorites.includes(currentHymn.num);
-      star.style.color = isFav ? '#f59e0b' : 'inherit';
-    }
-
     function changeFontSize(val) {
       fontSize = Math.min(Math.max(18, fontSize + val), 48);
       document.getElementById('viewerLyrics').style.fontSize = fontSize + 'px';
       localStorage.setItem('hymn_size', fontSize);
     }
-
-    function toggleTheme() {
-      document.body.classList.toggle('light-mode');
-    }
-
+    function toggleTheme() { document.body.classList.toggle('light-mode'); }
     function changeTab(tab) {
       currentTab = tab;
       document.getElementById('tabAll').className = 'tab ' + (tab === 'all' ? 'active' : '');
       document.getElementById('tabFav').className = 'tab ' + (tab === 'fav' ? 'active' : '');
       render();
     }
-
     document.getElementById('searchInput').addEventListener('input', render);
   </script>
 </body>
