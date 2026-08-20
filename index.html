@@ -25,7 +25,6 @@
       --border: #e5e8eb;
     }
 
-    /* 자간(글자간격)은 넓히지 않고 기본 유지 */
     * { 
       box-sizing: border-box; 
       margin: 0; 
@@ -35,7 +34,7 @@
     }
     body { background: var(--bg); color: var(--text); user-select: none; }
 
-    /* 상단 헤더 (기존 박스 크기/여백 유지) */
+    /* 상단 헤더 */
     header {
       position: sticky;
       top: 0;
@@ -47,7 +46,7 @@
       z-index: 100;
     }
 
-    /* 검색 박스: 흰색 바탕에 검은색 글자 */
+    /* 검색 박스 (흰색 바탕 / 검은 글자) */
     .search-input {
       flex: 1;
       padding: 12px 14px;
@@ -81,7 +80,7 @@
     .tab {
       flex: 1;
       text-align: center;
-      padding: 12px 0;
+      padding: 10px 0;
       font-size: 19px;
       font-weight: bold;
       color: var(--sub-text);
@@ -92,16 +91,18 @@
       border-bottom: 3px solid var(--primary);
     }
 
-    /* 리스트 (글자 크기 기존 17px -> 125% 확대하여 21px 적용) */
+    /* 리스트 */
     .list-view {
-      padding: 6px 0;
-      max-height: calc(100vh - 125px);
+      padding: 2px 0;
+      max-height: calc(100vh - 120px);
       overflow-y: auto;
     }
+    
+    /* 1장, 2장, 3장... 줄 간격을 기존의 절반(8px)으로 축소 */
     .hymn-card {
       display: flex;
       align-items: center;
-      padding: 18px 20px;
+      padding: 8px 16px; /* 위아래 여백을 절반으로 줄임 */
       border-bottom: 1px solid var(--border);
       cursor: pointer;
     }
@@ -117,14 +118,14 @@
       font-weight: 500;
     }
     .star-icon {
-      font-size: 24px;
+      font-size: 22px;
       color: #4b5563;
     }
     .star-icon.active {
       color: var(--star-color);
     }
 
-    /* 가사 상세 화면 (가사 크기 기존 22px -> 125% 확대하여 28px 기본 적용) */
+    /* 가사 상세 화면 */
     #viewer {
       display: none;
       position: fixed;
@@ -175,7 +176,7 @@
 </head>
 <body>
 
-  <!-- 상단 검색바 (흰색 바탕 / 검은 글자) -->
+  <!-- 상단 검색바 -->
   <header>
     <input type="text" id="searchInput" class="search-input" placeholder="장 번호, 제목, 가사 검색">
     <button class="btn-icon" onclick="toggleTheme()">☀️/🌙</button>
@@ -208,7 +209,6 @@
     let hymns = [];
     let currentTab = 'all';
     let currentHymn = null;
-    // 기본 글자 크기 125% 확대하여 28px로 적용
     let fontSize = parseInt(localStorage.getItem('hymn_size') || '28', 10);
     let favorites = JSON.parse(localStorage.getItem('hymn_favs') || '[]');
 
