@@ -13,12 +13,12 @@
       --primary: #60a5fa;
       --border: #27272a;
       --star-color: #f59e0b;
-      --chorus-color: #facc15; /* 다크모드 후렴 색상 (선명한 금색/노란색) */
+      --chorus-color: #facc15; /* 다크모드 후렴구 금색 */
     }
     body.light-mode {
       --bg: #ffffff; --text: #191f28; --sub-text: #8b95a1;
       --card-bg: #f9fafb; --primary: #2563eb; --border: #e5e8eb;
-      --chorus-color: #d97706; /* 라이트모드 후렴 색상 (주황 브라운) */
+      --chorus-color: #d97706; /* 라이트모드 후렴구 주황색 */
     }
     
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: sans-serif; letter-spacing: -0.5px; }
@@ -46,7 +46,7 @@
     .tab { flex: 1; text-align: center; line-height: 40px; font-size: 18px; font-weight: bold; color: var(--sub-text); cursor: pointer; }
     .tab.active { color: var(--primary); border-bottom: 3px solid var(--primary); }
 
-    /* 목록 (38px 초밀착 - 18장 이상 표시) */
+    /* 목록 (38px 초밀착) */
     .list-view { padding: 0; height: calc(100vh - 92px); overflow-y: auto; }
     .hymn-card {
       display: flex; align-items: center;
@@ -58,10 +58,11 @@
     .star-icon { font-size: 20px; color: #3f3f46; }
     .star-icon.active { color: var(--star-color); }
 
-    /* 가사 상세 뷰어 */
+    /* 가사 상세 뷰어 (좌우 스와이프 가능) */
     #viewer {
       display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
       background: var(--bg); flex-direction: column; z-index: 200;
+      touch-action: pan-y; /* 위아래 스크롤 허용 */
     }
     .viewer-header {
       padding: 0 16px; border-bottom: 1px solid var(--border);
@@ -77,17 +78,10 @@
       line-height: 1.5; font-size: 28px; 
     }
 
-    /* 절 구분 여백 & 후렴 전체 스타일 */
-    .verse-block {
-      margin-top: 18px; /* 절과 절 사이 여백 */
-    }
-    .verse-block:first-child {
-      margin-top: 0;
-    }
-    .chorus-text {
-      color: var(--chorus-color) !important; /* 후렴 구간 전체 강조 색상 */
-      font-weight: bold;
-    }
+    /* 절 여백 & 후렴구 스타일 */
+    .verse-block { margin-top: 18px; }
+    .verse-block:first-child { margin-top: 0; }
+    .chorus-text { color: var(--chorus-color) !important; font-weight: bold; }
   </style>
 </head>
 <body>
@@ -121,7 +115,7 @@
     let fontSize = parseInt(localStorage.getItem('hymn_size') || '28', 10);
     let favorites = JSON.parse(localStorage.getItem('hymn_favs') || '[]');
 
-    fetch('hymns.json?v=4')
+    fetch('hymns.json?v=5')
       .then(res => res.json())
       .then(data => { hymns = data; render(); });
 
@@ -142,32 +136,25 @@
       });
     }
 
-    // 후렴 시작부터 다음 절 (2), (3) 전까지 전체를 후렴 색상으로 유지하는 함수
     function formatLyricsHTML(text) {
       if (!text) return '';
       const lines = text.split('\n');
       let formattedHTML = '';
-      let inChorus = false; // 현재 후렴 구간인지 확인하는 스위치
+      let inChorus = false;
 
       lines.forEach(line => {
         let trimmed = line.trim();
         if (!trimmed) return;
 
-        // (1), (2), 1., 2. 등 새로운 절이 시작되는지 감지
         const isNewVerse = /^\s*(\(\d+\)|\d+\.|\d+절)/.test(trimmed);
-        
-        // '후렴' 단어 감지
         const isChorusStart = /후렴/.test(trimmed);
 
-        if (isNewVerse) {
-          inChorus = false; // 새로운 절이 시작되면 후렴 상태 해제!
-        } else if (isChorusStart) {
-          inChorus = true;  // '후렴' 단어가 나오면 후렴 상태 시작!
-        }
+        if (isNewVerse) inChorus = false;
+        else if (isChorusStart) inChorus = true;
 
         let classNames = [];
         if (isNewVerse) classNames.push('verse-block');
-        if (inChorus) classNames.push('chorus-text'); // 후렴 상태이면 해당 줄 전체에 색상 적용
+        if (inChorus) classNames.push('chorus-text');
 
         const classAttr = classNames.length > 0 ? ` class="${classNames.join(' ')}"` : '';
         formattedHTML += `<div${classAttr}>${trimmed}</div>`;
@@ -180,9 +167,9 @@
       currentHymn = h;
       document.getElementById('viewerTitle').innerText = `${h.num}장 ${h.title}`;
       const lb = document.getElementById('viewerLyrics');
-      
       lb.innerHTML = formatLyricsHTML(h.lyrics);
       lb.style.fontSize = fontSize + 'px';
+      lb.scrollTop = 0; // 가사 바뀔 때 맨 위로 스크롤 초기화
       
       document.getElementById('viewerStar').style.color = favorites.includes(h.num) ? '#f59e0b' : 'inherit';
       document.getElementById('viewer').style.display = 'flex';
@@ -213,6 +200,45 @@
     }
     
     document.getElementById('searchInput').addEventListener('input', render);
+
+    /* --- [신규 기능] 터치 슬라이드(스와이프) 제스처 감지 --- */
+    let touchStartX = 0;
+    let touchStartY = 0;
+    let touchEndX = 0;
+    let touchEndY = 0;
+
+    const viewerEl = document.getElementById('viewer');
+
+    viewerEl.addEventListener('touchstart', e => {
+      touchStartX = e.changedTouches[0].screenX;
+      touchStartY = e.changedTouches[0].screenY;
+    }, { passive: true });
+
+    viewerEl.addEventListener('touchend', e => {
+      touchEndX = e.changedTouches[0].screenX;
+      touchEndY = e.changedTouches[0].screenY;
+      handleSwipe();
+    }, { passive: true });
+
+    function handleSwipe() {
+      const deltaX = touchEndX - touchStartX;
+      const deltaY = touchEndY - touchStartY;
+
+      // 대각선이나 위아래 스크롤과 구분: 대각선보다 가로 이동이 크고 50px 이상 쓱 밀었을 때 작동
+      if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > 50) {
+        if (!currentHymn) return;
+        
+        if (deltaX < 0) {
+          // 왼쪽으로 밀었을 때 ➔ 다음 찬송가로 (예: 1장 -> 2장)
+          const nextHymn = hymns.find(h => h.num === currentHymn.num + 1);
+          if (nextHymn) openViewer(nextHymn);
+        } else {
+          // 오른쪽으로 밀었을 때 ➔ 이전 찬송가로 (예: 2장 -> 1장)
+          const prevHymn = hymns.find(h => h.num === currentHymn.num - 1);
+          if (prevHymn) openViewer(prevHymn);
+        }
+      }
+    }
   </script>
 </body>
 </html>
