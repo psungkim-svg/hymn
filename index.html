@@ -65,11 +65,11 @@
     /* 리스트 */
     .list-view { padding: 6px 0; max-height: calc(100vh - 138px); overflow-y: auto; }
     .hymn-card {
-      display: flex; align-items: center; padding: 8px 20px;
+      display: flex; align-items: center; padding: 4px 20px;
       border-bottom: 1px solid var(--border); cursor: pointer;
     }
     .hymn-num { width: 55px; font-size: 17px; font-weight: bold; color: var(--primary); flex-shrink: 0; }
-    .hymn-title { flex: 1; font-size: 21px; font-weight: 600; line-height: 1.3; }
+    .hymn-title { flex: 1; font-size: 21px; font-weight: 600; line-height: 1.25; }
     .star-icon { font-size: 22px; color: #d1d5db; }
     .star-icon.active { color: var(--star-color); }
     .hl { background: #ffe58a; border-radius: 3px; padding: 0 1px; color: #191f28; }
@@ -337,6 +337,7 @@
     let favorites = JSON.parse(localStorage.getItem('hymn_favs') || '[]');
     let recents = JSON.parse(localStorage.getItem('hymn_recent') || '[]');
     let playlists = JSON.parse(localStorage.getItem('hymn_lists') || '[]');
+    let customCats = JSON.parse(localStorage.getItem('hymn_cats') || '[]');
     let playlistCtx = null;          // {id, idx} 뷰어를 예배순서에서 열었을 때
     let pendingDelete = false;       // 예배순서 삭제 2단계 확인
 
@@ -399,7 +400,7 @@
       $('tabFav').className = 'tab ' + (activeTab === 'fav' ? 'active' : '');
 
       if (view.screen === 'category') renderCategory();
-      else if (view.screen === 'playlist') renderPlaylistDetail(view.id);
+      else if (view.screen === 'playlist' || view.screen === 'customcat') renderPlaylistDetail(view.id);
       else renderHome();
     }
     // =========================================================================
@@ -508,6 +509,35 @@
         div.onclick = () => go({ screen: 'category', tab: 'cat', cat: i, sub: -1 });
         list.appendChild(div);
       });
+
+      // ✏️ 내 분류 (사용자가 직접 만드는 분류 — 기존 분류와 겹쳐도 자유롭게)
+      const head = document.createElement('div');
+      head.className = 'cat-header';
+      head.innerHTML = `<div class="cat-cur"><b>✏️ 내 분류</b><span>내가 만든 분류</span></div>`;
+      list.appendChild(head);
+      const add = document.createElement('div');
+      add.className = 'pl-actions';
+      add.innerHTML = `<button class="primary" onclick="promptNew('cat')">＋ 새 분류 만들기</button>`;
+      list.appendChild(add);
+      if (customCats.length === 0) {
+        const empty = document.createElement('div');
+        empty.style.cssText = 'text-align:center; padding: 18px 20px; color: var(--sub-text); font-size: 14px;';
+        empty.innerText = '원하는 곡끼리 묶어 나만의 분류를 만들 수 있어요 (기존 분류와 겹쳐도 됨)';
+        list.appendChild(empty);
+        return;
+      }
+      customCats.forEach(p => {
+        const div = document.createElement('div');
+        div.className = 'cat-card';
+        div.innerHTML = `
+          <div class="cat-icon">✏️</div>
+          <div class="cat-name">${esc(p.name)}</div>
+          <div class="cat-range">${p.nums.length}곡</div>
+          <div class="cat-arrow">›</div>
+        `;
+        div.onclick = () => go({ screen: 'customcat', tab: 'cat', id: p.id });
+        list.appendChild(div);
+      });
     }
 
     // ================== 분류 상세 ==================
@@ -546,14 +576,18 @@
       renderHymnRows(list, arr, q);
     }
 
-    // ================== 예배 순서 (플레이리스트) ==================
+    // ================== 예배 순서 / 내 분류 (사용자 그룹) ==================
     const saveLists = () => localStorage.setItem('hymn_lists', JSON.stringify(playlists));
-    const getList = id => playlists.find(p => p.id === id);
+    const saveCats  = () => localStorage.setItem('hymn_cats', JSON.stringify(customCats));
+    const getStore  = kind => (kind === 'cat' ? customCats : playlists);
+    const saveStore = kind => (kind === 'cat' ? saveCats() : saveLists());
+    const getList   = (kind, id) => getStore(kind).find(p => p.id === id);
+    const kindOf    = () => (view.screen === 'customcat' ? 'cat' : 'pl');
 
     function renderPlaylistTab(list) {
       const wrap = document.createElement('div');
       wrap.className = 'pl-actions';
-      wrap.innerHTML = `<button class="primary" onclick="promptNewList()">＋ 새 예배 순서 만들기</button>`;
+      wrap.innerHTML = `<button class="primary" onclick="promptNew('pl')">＋ 새 예배 순서 만들기</button>`;
       list.appendChild(wrap);
 
       if (playlists.length === 0) {
@@ -576,29 +610,30 @@
 
     function renderPlaylistDetail(id) {
       const list = $('hymnList');
-      const p = getList(id);
+      const kind = kindOf();
+      const p = getList(kind, id);
       list.innerHTML = '';
-      if (!p) { renderPlaylistTab(list); return; }
+      if (!p) { view.tab = (kind === 'cat' ? 'cat' : 'list'); renderHome(); return; }
 
       const bar = document.createElement('div');
       bar.className = 'cat-header';
       bar.innerHTML = `
         <button class="cat-back" onclick="history.back()">‹ 목록</button>
-        <div class="cat-cur"><b>${esc(p.name)}</b><span>${p.nums.length}곡</span></div>
+        <div class="cat-cur"><b>${kind === 'cat' ? '✏️' : '📋'} ${esc(p.name)}</b><span>${p.nums.length}곡</span></div>
       `;
       list.appendChild(bar);
 
       const actions = document.createElement('div');
       actions.className = 'pl-actions';
       actions.innerHTML = `
-        <button class="primary" onclick="plStart('${id}')">▶ 이 순서로 보기</button>
-        <button onclick="plRename('${id}')">✏️ 이름변경</button>
-        <button id="plDelBtn" onclick="plDelete('${id}')">${pendingDelete ? '❗ 정말 삭제?' : '🗑 삭제'}</button>
+        <button class="primary" onclick="plStart('${kind}','${id}')">▶ 이 순서로 보기</button>
+        <button onclick="plRename('${kind}','${id}')">✏️ 이름변경</button>
+        <button id="plDelBtn" onclick="plDelete('${kind}','${id}')">${pendingDelete ? '❗ 정말 삭제?' : '🗑 삭제'}</button>
       `;
       list.appendChild(actions);
 
       if (p.nums.length === 0) {
-        list.innerHTML += '<div style="text-align:center; padding: 40px 20px; color: var(--sub-text);">아직 곡이 없습니다.<br>찬송가를 연 뒤 <b>＋ 순서</b>에서 이 순서를 선택하세요.</div>';
+        list.innerHTML += `<div style="text-align:center; padding: 40px 20px; color: var(--sub-text);">아직 곡이 없습니다.<br>찬송가를 연 뒤 <b>＋ 순서</b>에서 이 ${kind === 'cat' ? '분류' : '순서'}를 선택하세요.</div>`;
         return;
       }
       p.nums.forEach((num, idx) => {
@@ -608,91 +643,99 @@
         row.innerHTML = `
           <div class="pl-order">${idx + 1}</div>
           <div class="pl-title">${h ? h.num + '장 ' + esc(h.title) : num + '장'}<small>${h ? '' : '（데이터 없음）'}</small></div>
-          <button class="pl-ctrl" onclick="event.stopPropagation(); plMove('${id}',${idx},-1)">▲</button>
-          <button class="pl-ctrl" onclick="event.stopPropagation(); plMove('${id}',${idx},1)">▼</button>
-          <button class="pl-ctrl" onclick="event.stopPropagation(); plRemove('${id}',${idx})">✕</button>
+          <button class="pl-ctrl" onclick="event.stopPropagation(); plMove('${kind}','${id}',${idx},-1)">▲</button>
+          <button class="pl-ctrl" onclick="event.stopPropagation(); plMove('${kind}','${id}',${idx},1)">▼</button>
+          <button class="pl-ctrl" onclick="event.stopPropagation(); plRemove('${kind}','${id}',${idx})">✕</button>
         `;
-        row.onclick = () => plOpen(id, idx);
+        row.onclick = () => plOpen(kind, id, idx);
         list.appendChild(row);
       });
     }
 
-    function promptNewList(afterCreate) {
-      promptModal('새 예배 순서', '예: 주일 오전 예배', name => {
-        if (!name.trim()) return;
-        const p = { id: 'pl' + Date.now(), name: name.trim(), nums: [] };
-        playlists.unshift(p);
-        saveLists();
-        if (afterCreate) afterCreate(p.id); else { renderHome(); showToast("'" + p.name + "' 생성됨"); }
-      });
+    function promptNew(kind, afterCreate) {
+      promptModal(kind === 'cat' ? '새 내 분류 만들기' : '새 예배 순서 만들기',
+                  kind === 'cat' ? '예: 우리교회 특송곡' : '예: 주일 오전 예배',
+        name => {
+          if (!name.trim()) return;
+          const p = { id: 'g' + Date.now() + (kind === 'cat' ? 'c' : 'p'), name: name.trim(), nums: [] };
+          getStore(kind).unshift(p);
+          saveStore(kind);
+          if (afterCreate) afterCreate(kind, p.id);
+          else { showToast("'" + p.name + "' 생성됨"); renderHome(); }
+        });
     }
 
-    function plOpen(id, idx) {
-      const p = getList(id);
+    function plOpen(kind, id, idx) {
+      const p = getList(kind, id);
       if (!p || !p.nums[idx]) return;
-      openHymn(p.nums[idx], { id, idx });
+      openHymn(p.nums[idx], { kind, id, idx });
     }
-    function plStart(id) { plOpen(id, 0); }
-    function plMove(id, idx, dir) {
-      const p = getList(id); if (!p) return;
+    function plStart(kind, id) { plOpen(kind, id, 0); }
+    function plMove(kind, id, idx, dir) {
+      const p = getList(kind, id); if (!p) return;
       const j = idx + dir;
       if (j < 0 || j >= p.nums.length) return;
       [p.nums[idx], p.nums[j]] = [p.nums[j], p.nums[idx]];
-      saveLists(); renderPlaylistDetail(id);
+      saveStore(kind); renderPlaylistDetail(id);
     }
-    function plRemove(id, idx) {
-      const p = getList(id); if (!p) return;
+    function plRemove(kind, id, idx) {
+      const p = getList(kind, id); if (!p) return;
       p.nums.splice(idx, 1);
-      saveLists(); renderPlaylistDetail(id);
+      saveStore(kind); renderPlaylistDetail(id);
     }
-    function plRename(id) {
-      const p = getList(id); if (!p) return;
+    function plRename(kind, id) {
+      const p = getList(kind, id); if (!p) return;
       promptModal('이름 변경', '', name => {
         if (!name.trim()) return;
-        p.name = name.trim(); saveLists(); renderPlaylistDetail(id); showToast('이름을 변경했습니다');
+        p.name = name.trim(); saveStore(kind); renderPlaylistDetail(id); showToast('이름을 변경했습니다');
       }, p.name);
     }
-    function plDelete(id) {
+    function plDelete(kind, id) {
       if (!pendingDelete) { pendingDelete = true; renderPlaylistDetail(id); setTimeout(() => { pendingDelete = false; const b = $('plDelBtn'); if (b) b.textContent = '🗑 삭제'; }, 2500); return; }
       pendingDelete = false;
-      playlists = playlists.filter(p => p.id !== id);
-      saveLists(); history.back();
+      if (kind === 'cat') customCats = customCats.filter(p => p.id !== id);
+      else playlists = playlists.filter(p => p.id !== id);
+      saveStore(kind); history.back();
     }
 
     function addToPlaylistModal() {
       if (!currentHymn) return;
-      let html = `<h3>＋ 어느 예배 순서에 추가할까요?</h3>`;
-      html += `<button class="m-row" onclick="promptNewList(addThenClose)">➕ <b>새 순서 만들기</b></button>`;
-      if (playlists.length === 0) {
-        html += `<div class="m-note">저장된 순서가 없습니다. 새 순서를 만들어 보세요.</div>`;
-      }
+      let html = `<h3>＋ ${currentHymn.num}장을 어디에 추가할까요?</h3>`;
+      html += `<div class="m-sec-title">📋 예배 순서</div>`;
+      html += `<button class="m-row" onclick="promptNew('pl', addThenClose)">➕ <b>새 예배 순서 만들기</b></button>`;
       playlists.forEach(p => {
-        html += `<button class="m-row" onclick="addToList('${p.id}')">📋 ${esc(p.name)} <small>· ${p.nums.length}곡</small></button>`;
+        html += `<button class="m-row" onclick="addToList('pl','${p.id}')">📋 ${esc(p.name)} <small>· ${p.nums.length}곡</small></button>`;
       });
+      html += `<div class="m-sec"><div class="m-sec-title">✏️ 내 분류</div>`;
+      html += `<button class="m-row" onclick="promptNew('cat', addThenClose)">➕ <b>새 분류 만들기</b></button>`;
+      customCats.forEach(p => {
+        html += `<button class="m-row" onclick="addToList('cat','${p.id}')">✏️ ${esc(p.name)} <small>· ${p.nums.length}곡</small></button>`;
+      });
+      html += `</div>`;
       openModal(html);
     }
-    function addToList(id) {
+    function addToList(kind, id) {
       if (!currentHymn) return;
-      const p = getList(id); if (!p) return;
+      const p = getList(kind, id); if (!p) return;
       p.nums.push(currentHymn.num);
-      saveLists(); closeModal();
+      saveStore(kind); closeModal();
       showToast(`'${p.name}'에 ${currentHymn.num}장 추가됨`);
     }
-    function addThenClose(id) {
+    function addThenClose(kind, id) {
       if (!currentHymn) return;
-      const p = getList(id); if (!p) return;
+      const p = getList(kind, id); if (!p) return;
       p.nums.push(currentHymn.num);
-      saveLists(); closeModal();
+      saveStore(kind); closeModal();
       showToast(`'${p.name}' 생성 · ${currentHymn.num}장 추가됨`);
     }
 
     function openNextInList() {
       if (!playlistCtx) return;
-      const p = getList(playlistCtx.id);
+      const p = getList(playlistCtx.kind || 'pl', playlistCtx.id);
       if (!p) return;
       const idx = playlistCtx.idx + 1;
       if (idx >= p.nums.length) return;
-      openHymn(p.nums[idx], { id: p.id, idx });
+      openHymn(p.nums[idx], { kind: playlistCtx.kind || 'pl', id: p.id, idx });
     }
 
     // ================== 뷰어 ==================
@@ -716,7 +759,7 @@
     function updateNextBar() {
       const bar = $('nextBar');
       if (!playlistCtx) { bar.style.display = 'none'; return; }
-      const p = getList(playlistCtx.id);
+      const p = getList(playlistCtx.kind || 'pl', playlistCtx.id);
       if (!p) { bar.style.display = 'none'; return; }
       const idx = playlistCtx.idx;
       if (idx + 1 >= p.nums.length) {
@@ -869,16 +912,23 @@
     function openModal(html) { $('modalBox').innerHTML = html; $('modalWrap').style.display = 'flex'; }
     function closeModal() { $('modalWrap').style.display = 'none'; }
 
+    let _modalCb = null;
     function promptModal(title, placeholder, cb, value) {
+      _modalCb = cb;
       openModal(`
         <h3>${esc(title)}</h3>
-        <input type="text" id="modalInput" placeholder="${esc(placeholder)}" value="${esc(value || '')}">
+        <input type="text" id="modalInput" placeholder="${esc(placeholder)}" value="${esc(value || '')}" onkeydown="if(event.key==='Enter')modalOk()">
         <div class="m-btns">
           <button class="m-cancel" onclick="closeModal()">취소</button>
-          <button class="m-ok" onclick="(function(){ const v=document.getElementById('modalInput').value; closeModal(); cb(v); })()">확인</button>
+          <button class="m-ok" onclick="modalOk()">확인</button>
         </div>
       `);
       setTimeout(() => { const i = $('modalInput'); if (i) { i.focus(); i.select(); } }, 50);
+    }
+    function modalOk() {
+      const v = $('modalInput') ? $('modalInput').value : '';
+      closeModal();
+      if (_modalCb) { const cb = _modalCb; _modalCb = null; cb(v); }
     }
 
     // ================== 설정 (백업/복원/설치) ==================
@@ -888,7 +938,7 @@
     function openSettings() {
       const backupData = JSON.stringify({
         app: 'hymnal-backup', ver: 1,
-        favs: favorites, lists: playlists, recent: recents,
+        favs: favorites, lists: playlists, cats: customCats, recent: recents,
         size: fontSize, dark: document.body.classList.contains('dark-mode') ? 1 : 0
       }, null, 1);
       openModal(`
@@ -933,6 +983,7 @@
         if (d.app !== 'hymnal-backup') throw 0;
         if (Array.isArray(d.favs)) { favorites = d.favs; localStorage.setItem('hymn_favs', JSON.stringify(favorites)); }
         if (Array.isArray(d.lists)) { playlists = d.lists; saveLists(); }
+        if (Array.isArray(d.cats)) { customCats = d.cats; saveCats(); }
         if (Array.isArray(d.recent)) { recents = d.recent; localStorage.setItem('hymn_recent', JSON.stringify(recents)); }
         if (d.size) { fontSize = d.size; localStorage.setItem('hymn_size', d.size); }
         if (typeof d.dark === 'number') localStorage.setItem('hymn_dark', d.dark);
@@ -985,7 +1036,7 @@
       }
       if (view.screen === 'home') renderHome();
       else if (view.screen === 'category') renderCategory();
-      else if (view.screen === 'playlist') renderPlaylistDetail(view.id);
+      else if (view.screen === 'playlist' || view.screen === 'customcat') renderPlaylistDetail(view.id);
     });
 
     // 번호 입력 + Enter → 바로 열기
