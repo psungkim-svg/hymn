@@ -40,17 +40,18 @@
       padding: 12px 16px; display: flex; gap: 8px; z-index: 100;
     }
     .search-input {
-      flex: 1; padding: 16px 14px; border: 1px solid var(--border);
-      border-radius: 10px; font-size: 17px; background: var(--card-bg);
+      flex: 1; padding: 0 12px; height: 42px; border: 1px solid var(--border);
+      border-radius: 10px; font-size: 21px; font-weight: 600; background: var(--card-bg);
       color: var(--text); outline: none; min-width: 0;
     }
+    .search-input::placeholder { font-size: 14px; font-weight: normal; }
     /* 다크모드에서도 검색창은 흰색 바탕으로 고정 */
     body.dark-mode .search-input {
       background: #ffffff; color: #191f28; border-color: #d1d5db;
     }
     body.dark-mode .search-input::placeholder { color: #9ca3af; }
     .btn-icon {
-      padding: 0 13px; background: var(--card-bg); border: 1px solid var(--border);
+      padding: 0 13px; height: 42px; background: var(--card-bg); border: 1px solid var(--border);
       border-radius: 10px; font-size: 17px; cursor: pointer; color: var(--text); flex-shrink: 0;
     }
 
@@ -63,7 +64,7 @@
     .tab.active { color: var(--primary); border-bottom: 3px solid var(--primary); }
 
     /* 리스트 */
-    .list-view { padding: 6px 0; max-height: calc(100vh - 138px); overflow-y: auto; }
+    .list-view { padding: 6px 0; max-height: calc(100vh - 106px); overflow-y: auto; }
     .hymn-card {
       display: flex; align-items: center; padding: 4px 20px;
       border-bottom: 1px solid var(--border); cursor: pointer;
@@ -72,6 +73,11 @@
     .hymn-title { flex: 1; font-size: 21px; font-weight: 600; line-height: 1.25; }
     .star-icon { font-size: 22px; color: #d1d5db; }
     .star-icon.active { color: var(--star-color); }
+    .my-tag {
+      display: inline-block; font-size: 12px; font-weight: 500; color: var(--primary);
+      border: 1px solid var(--primary); border-radius: 10px; padding: 1px 8px;
+      margin-left: 8px; vertical-align: middle; flex-shrink: 0; white-space: nowrap;
+    }
     .hl { background: #ffe58a; border-radius: 3px; padding: 0 1px; color: #191f28; }
     body.dark-mode .hl { background: #7c6a11; color: #fff; }
 
@@ -92,15 +98,15 @@
 
     /* 분류 메뉴 */
     .cat-card {
-      display: flex; align-items: center; gap: 12px; padding: 15px 20px;
+      display: flex; align-items: center; gap: 12px; padding: 4px 20px;
       border-bottom: 1px solid var(--border); cursor: pointer;
     }
     .cat-icon {
-      width: 38px; height: 38px; border-radius: 10px; background: var(--card-bg);
+      width: 32px; height: 32px; border-radius: 9px; background: var(--card-bg);
       border: 1px solid var(--border); display: flex; align-items: center;
-      justify-content: center; font-size: 18px; flex-shrink: 0;
+      justify-content: center; font-size: 16px; flex-shrink: 0;
     }
-    .cat-name { flex: 1; font-size: 17px; font-weight: 600; }
+    .cat-name { flex: 1; font-size: 21px; font-weight: 600; line-height: 1.25; }
     .cat-range { font-size: 13px; color: var(--sub-text); white-space: nowrap; }
     .cat-arrow { color: var(--sub-text); font-size: 20px; }
 
@@ -130,7 +136,7 @@
 
     /* 예배 순서(플레이리스트) */
     .pl-song {
-      display: flex; align-items: center; padding: 12px 16px;
+      display: flex; align-items: center; padding: 4px 16px;
       border-bottom: 1px solid var(--border); cursor: pointer; gap: 10px;
     }
     .pl-order {
@@ -138,7 +144,7 @@
       color: #fff; font-size: 13px; font-weight: bold; display: flex;
       align-items: center; justify-content: center; flex-shrink: 0;
     }
-    .pl-title { flex: 1; font-size: 16px; min-width: 0; }
+    .pl-title { flex: 1; font-size: 21px; font-weight: 600; line-height: 1.25; min-width: 0; }
     .pl-title small { display: block; color: var(--sub-text); font-size: 12px; }
     .pl-ctrl {
       border: 1px solid var(--border); background: var(--card-bg); color: var(--text);
@@ -338,6 +344,16 @@
     let recents = JSON.parse(localStorage.getItem('hymn_recent') || '[]');
     let playlists = JSON.parse(localStorage.getItem('hymn_lists') || '[]');
     let customCats = JSON.parse(localStorage.getItem('hymn_cats') || '[]');
+    let catExtras  = JSON.parse(localStorage.getItem('hymn_cat_extras') || '{}');  // 공식 분류에 내가 추가한 곡
+    const saveCatExtras = () => localStorage.setItem('hymn_cat_extras', JSON.stringify(catExtras));
+    const catKeyOf = (ci, si) => 'c' + ci + (si >= 0 ? 's' + si : '');
+    function toggleCatExtra(ci, si, num) {
+      const key = catKeyOf(ci, si);
+      const arr = catExtras[key] || (catExtras[key] = []);
+      const i = arr.indexOf(num);
+      if (i >= 0) { arr.splice(i, 1); if (!arr.length) delete catExtras[key]; saveCatExtras(); return false; }
+      arr.push(num); saveCatExtras(); return true;
+    }
     let playlistCtx = null;          // {id, idx} 뷰어를 예배순서에서 열었을 때
     let pendingDelete = false;       // 예배순서 삭제 2단계 확인
 
@@ -349,7 +365,8 @@
       { icon:'🙏', name:'예배', from:1, to:62, subs:[['송영',1,7],['경배',8,17],['찬양',18,41],['주일',42,48],['봉헌',49,52],['예배 마침',53,57],['아침과 저녁',58,62]] },
       { icon:'✨', name:'성부 하나님', from:63, to:79, subs:[['창조주',63,77],['섭리',78,79]] },
       { icon:'✝️', name:'성자 하나님', from:80, to:181, subs:[['예수 그리스도',80,96],['구주 강림',97,105],['성탄',106,129],['주현',130,133],['생애',134,138],['종려주일',139,142],['고난',143,158],['부활',159,173],['재림',174,181]] },
-      { icon:'🕊️', name:'성령', from:182, to:197, subs:[['성령강림',182,195],['은사',196,197]] },
+      { icon:'🕊️', name:'성령강림', from:182, to:195, subs:[] },
+      { icon:'🎁', name:'은사', from:196, to:197, subs:[] },
       { icon:'📖', name:'성경', from:198, to:206, subs:[] },
       { icon:'⛪', name:'교회', from:207, to:223, subs:[['하나님 나라',207,210],['헌신과 봉사',211,218],['성도의 교제',219,223]] },
       { icon:'🍞', name:'성례', from:224, to:233, subs:[['세례(침례)',224,226],['성찬',227,233]] },
@@ -444,7 +461,7 @@
     }
 
     // ================== 공통 목록 렌더링 ==================
-    function renderHymnRows(container, arr, q) {
+    function renderHymnRows(container, arr, q, extrasSet) {
       if (arr.length === 0) {
         container.innerHTML += '<div style="text-align:center; padding: 40px; color: var(--sub-text);">검색 결과가 없습니다.</div>';
         return;
@@ -452,9 +469,11 @@
       arr.forEach(h => {
         const item = document.createElement('div');
         item.className = 'hymn-card';
+        const exTag = (!extrasSet || !extrasSet.has(h.num)) ? '' :
+          `<span class="my-tag" onclick="event.stopPropagation(); removeCatExtra(${h.num})">내가 추가 ✕</span>`;
         item.innerHTML = `
           <div class="hymn-num">${h.num}장</div>
-          <div class="hymn-title">${hlTitle(h.title, q || '')}</div>
+          <div class="hymn-title">${hlTitle(h.title, q || '')}${exTag}</div>
           <div class="star-icon ${favorites.includes(h.num) ? 'active' : ''}">★</div>
         `;
         item.onclick = () => openHymn(h.num);
@@ -498,12 +517,14 @@
     function renderCatMenu(list) {
       CATEGORIES.forEach((c, i) => {
         const n = hymns.filter(h => h.num >= c.from && h.num <= c.to).length;
+        let e = (catExtras[catKeyOf(i, -1)] || []).length;
+        c.subs.forEach((sb, si) => { e += (catExtras[catKeyOf(i, si)] || []).length; });
         const div = document.createElement('div');
         div.className = 'cat-card';
         div.innerHTML = `
           <div class="cat-icon">${c.icon}</div>
           <div class="cat-name">${c.name}</div>
-          <div class="cat-range">${c.from}–${c.to}장 · ${n}곡</div>
+          <div class="cat-range">${c.from}–${c.to}장 · ${n}곡${e ? ` <b style="color:var(--primary)">＋${e}</b>` : ''}</div>
           <div class="cat-arrow">›</div>
         `;
         div.onclick = () => go({ screen: 'category', tab: 'cat', cat: i, sub: -1 });
@@ -570,10 +591,69 @@
         list.appendChild(row);
       }
 
+      const addBtn = document.createElement('div');
+      addBtn.className = 'pl-actions';
+      addBtn.innerHTML = `<button class="primary" onclick="openCatPicker()">＋ 이 분류에 곡 추가</button>`;
+      list.appendChild(addBtn);
+
       const from = view.sub >= 0 ? c.subs[view.sub][1] : c.from;
       const to   = view.sub >= 0 ? c.subs[view.sub][2] : c.to;
-      const arr = hymns.filter(h => h.num >= from && h.num <= to && matchQ(h, q));
-      renderHymnRows(list, arr, q);
+      const exSet = new Set((catExtras[catKeyOf(view.cat, view.sub)] || []).filter(n => n < from || n > to));
+      const arr = hymns.filter(h => ((h.num >= from && h.num <= to) || exSet.has(h.num)) && matchQ(h, q))
+                       .sort((a, b) => a.num - b.num);
+      renderHymnRows(list, arr, q, exSet);
+    }
+
+    // ================== 공식 분류에 곡 추가/빼기 ==================
+    function openCatPicker() {
+      const c = CATEGORIES[view.cat];
+      const nm = view.sub >= 0 ? c.subs[view.sub][0] : c.name;
+      openModal(`
+        <h3>📂 ${esc(nm)}에 곡 추가</h3>
+        <input type="text" id="pickerQ" placeholder="번호 또는 제목 입력 (예: 182, 은혜)" oninput="renderPickerRows()" autocomplete="off">
+        <div id="pickerList"><div class="m-note">번호나 제목을 입력하면 곡이 나타납니다.<br>한 곡을 여러 분류에 넣어도, 다른 분류에는 영향이 없습니다.</div></div>
+        <div class="m-btns" style="margin-top:12px;"><button class="m-cancel" onclick="closeModal()">닫기</button></div>
+      `);
+    }
+    function renderPickerRows() {
+      const q = $('pickerQ').value.trim().toLowerCase();
+      const box = $('pickerList');
+      if (!q) { box.innerHTML = '<div class="m-note">번호나 제목을 입력하면 곡이 나타납니다.</div>'; return; }
+      const c = CATEGORIES[view.cat];
+      const from = view.sub >= 0 ? c.subs[view.sub][1] : c.from;
+      const to   = view.sub >= 0 ? c.subs[view.sub][2] : c.to;
+      const ex = catExtras[catKeyOf(view.cat, view.sub)] || [];
+      const res = hymns.filter(h => matchQ(h, q)).slice(0, 40);
+      box.innerHTML = res.length ? '' : '<div class="m-note">검색 결과가 없습니다.</div>';
+      res.forEach(h => {
+        const b = document.createElement('button');
+        b.className = 'm-row';
+        if (h.num >= from && h.num <= to) {
+          b.style.opacity = 0.45;
+          b.innerHTML = `${h.num}장 ${esc(h.title)} <small>· 이미 이 분류에 있음</small>`;
+        } else if (ex.includes(h.num)) {
+          b.innerHTML = `✅ <b>${h.num}장</b> ${esc(h.title)} <small>· 추가됨 (눌러서 빼기)</small>`;
+          b.onclick = () => { toggleCatExtra(view.cat, view.sub, h.num); renderPickerRows(); renderCategory(); };
+        } else {
+          b.innerHTML = `＋ <b>${h.num}장</b> ${esc(h.title)}`;
+          b.onclick = () => { toggleCatExtra(view.cat, view.sub, h.num); renderPickerRows(); renderCategory(); };
+        }
+        box.appendChild(b);
+      });
+    }
+    function removeCatExtra(num) {
+      toggleCatExtra(view.cat, view.sub, num);
+      renderCategory();
+      showToast(num + '장을 이 분류에서 뺐습니다');
+    }
+    function addExtraFromViewer(ci, si) {
+      if (!currentHymn) return;
+      const key = catKeyOf(ci, si);
+      if ((catExtras[key] || []).includes(currentHymn.num)) { showToast('이미 이 분류에 추가되어 있어요'); return; }
+      toggleCatExtra(ci, si, currentHymn.num);
+      closeModal();
+      const nm = si >= 0 ? CATEGORIES[ci].subs[si][0] : CATEGORIES[ci].name;
+      showToast(`'${nm}'에 ${currentHymn.num}장 추가됨`);
     }
 
     // ================== 예배 순서 / 내 분류 (사용자 그룹) ==================
@@ -710,6 +790,17 @@
       html += `<button class="m-row" onclick="promptNew('cat', addThenClose)">➕ <b>새 분류 만들기</b></button>`;
       customCats.forEach(p => {
         html += `<button class="m-row" onclick="addToList('cat','${p.id}')">✏️ ${esc(p.name)} <small>· ${p.nums.length}곡</small></button>`;
+      });
+      html += `</div>`;
+      html += `<div class="m-sec"><div class="m-sec-title">📂 공식 분류에 추가 (겹쳐도 OK)</div>`;
+      CATEGORIES.forEach((c, ci) => {
+        const targets = c.subs.length
+          ? c.subs.map((sb, si) => [ci, si, sb[0], sb[1], sb[2]])
+          : [[ci, -1, c.name, c.from, c.to]];
+        targets.forEach(([tci, tsi, nm, f, t]) => {
+          const added = (catExtras[catKeyOf(tci, tsi)] || []).includes(currentHymn.num);
+          html += `<button class="m-row" onclick="addExtraFromViewer(${tci},${tsi})">${added ? '✅' : '📂'} ${esc(nm)} <small>· ${f}–${t}장${added ? ' · 추가됨' : ''}</small></button>`;
+        });
       });
       html += `</div>`;
       openModal(html);
@@ -938,7 +1029,7 @@
     function openSettings() {
       const backupData = JSON.stringify({
         app: 'hymnal-backup', ver: 1,
-        favs: favorites, lists: playlists, cats: customCats, recent: recents,
+        favs: favorites, lists: playlists, cats: customCats, extras: catExtras, recent: recents,
         size: fontSize, dark: document.body.classList.contains('dark-mode') ? 1 : 0
       }, null, 1);
       openModal(`
@@ -947,7 +1038,7 @@
         <div class="m-note">• Android/Chrome: 브라우저 메뉴 ⋮ → <b>앱 설치</b> 또는 <b>홈 화면에 추가</b><br>• iPhone/Safari: 공유 버튼 → <b>홈 화면에 추가</b><br>• 설치하면 인터넷 없이도 사용할 수 있습니다</div>
         ${deferredInstall ? `<button class="m-row" onclick="doInstall()">📲 지금 앱 설치하기</button>` : ''}
         <div class="m-sec">
-          <div class="m-sec-title">💾 백업 (즐겨찾기 + 예배순서)</div>
+          <div class="m-sec-title">💾 백업 (즐겨찾기 + 예배순서 + 분류)</div>
           <div class="m-btns">
             <button class="m-ok" onclick="copyBackup()">클립보드 복사</button>
             <button class="m-cancel" onclick="downloadBackup()">파일로 저장</button>
@@ -984,6 +1075,7 @@
         if (Array.isArray(d.favs)) { favorites = d.favs; localStorage.setItem('hymn_favs', JSON.stringify(favorites)); }
         if (Array.isArray(d.lists)) { playlists = d.lists; saveLists(); }
         if (Array.isArray(d.cats)) { customCats = d.cats; saveCats(); }
+        if (d.extras && typeof d.extras === 'object') { catExtras = d.extras; saveCatExtras(); }
         if (Array.isArray(d.recent)) { recents = d.recent; localStorage.setItem('hymn_recent', JSON.stringify(recents)); }
         if (d.size) { fontSize = d.size; localStorage.setItem('hymn_size', d.size); }
         if (typeof d.dark === 'number') localStorage.setItem('hymn_dark', d.dark);
