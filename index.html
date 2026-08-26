@@ -3,201 +3,966 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <title>새찬송가 v6</title> <!-- 버전 표시로 확인 가능케 함 -->
+  <title>새찬송가</title>
+  <!-- PWA -->
+  <link rel="manifest" href="manifest.webmanifest">
+  <meta name="theme-color" content="#2563eb">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="새찬송가">
   <style>
     :root {
-      --bg: #000000; --text: #ffffff; --sub-text: #a1a1aa;
-      --card-bg: #121212; --primary: #60a5fa; --border: #27272a;
-      --star-color: #f59e0b; --chorus-color: #facc15;
+      --bg: #ffffff;
+      --text: #191f28;
+      --sub-text: #8b95a1;
+      --card-bg: #f9fafb;
+      --primary: #2563eb;
+      --border: #e5e8eb;
+      --star-color: #f59e0b;
     }
-    body.light-mode {
-      --bg: #ffffff; --text: #191f28; --sub-text: #8b95a1;
-      --card-bg: #f9fafb; --primary: #2563eb; --border: #e5e8eb;
-      --chorus-color: #d97706;
+    body.dark-mode {
+      --bg: #121212;
+      --text: #f3f4f6;
+      --sub-text: #9ca3af;
+      --card-bg: #1e1e1e;
+      --primary: #60a5fa;
+      --border: #2e2e2e;
     }
-    * { box-sizing: border-box; margin: 0; padding: 0; font-family: sans-serif; letter-spacing: -0.5px; }
-    body { background: var(--bg); color: var(--text); user-select: none; overflow: hidden; }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", Pretendard, sans-serif; }
+    body { background: var(--bg); color: var(--text); user-select: none; }
+    button { font-family: inherit; }
 
-    header { position: sticky; top: 0; background: var(--bg); border-bottom: 1px solid var(--border); padding: 6px 16px; display: flex; gap: 8px; z-index: 100; height: 52px; align-items: center; }
-    .search-input { flex: 1; padding: 8px 12px; border: 1px solid #ffffff; border-radius: 6px; font-size: 18px; background-color: #ffffff !important; color: #000000 !important; outline: none; }
-    .btn-icon { height: 38px; padding: 0 10px; background: var(--card-bg); border: 1px solid var(--border); border-radius: 6px; font-size: 16px; cursor: pointer; color: var(--text); }
+    /* 상단 헤더 & 검색창 */
+    header {
+      position: sticky; top: 0; background: var(--bg);
+      border-bottom: 1px solid var(--border);
+      padding: 12px 16px; display: flex; gap: 8px; z-index: 100;
+    }
+    .search-input {
+      flex: 1; padding: 12px 14px; border: 1px solid var(--border);
+      border-radius: 10px; font-size: 16px; background: var(--card-bg);
+      color: var(--text); outline: none; min-width: 0;
+    }
+    .btn-icon {
+      padding: 0 13px; background: var(--card-bg); border: 1px solid var(--border);
+      border-radius: 10px; font-size: 17px; cursor: pointer; color: var(--text); flex-shrink: 0;
+    }
 
-    .tabs { display: flex; border-bottom: 1px solid var(--border); background: var(--bg); height: 40px; }
-    .tab { flex: 1; text-align: center; line-height: 40px; font-size: 18px; font-weight: bold; color: var(--sub-text); cursor: pointer; }
+    /* 탭 메뉴 */
+    .tabs { display: flex; border-bottom: 1px solid var(--border); background: var(--bg); }
+    .tab {
+      flex: 1; text-align: center; padding: 12px 0; font-size: 14px;
+      font-weight: bold; color: var(--sub-text); cursor: pointer;
+    }
     .tab.active { color: var(--primary); border-bottom: 3px solid var(--primary); }
 
-    .list-view { padding: 0; height: calc(100vh - 92px); overflow-y: auto; }
-    .hymn-card { display: flex; align-items: center; padding: 2px 16px; height: 38px; border-bottom: 1px solid var(--border); cursor: pointer; }
-    .hymn-num { width: 60px; font-size: 21px; font-weight: bold; color: var(--primary); }
-    .hymn-title { flex: 1; font-size: 21px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .star-icon { font-size: 20px; color: #3f3f46; }
+    /* 리스트 */
+    .list-view { padding: 6px 0; max-height: calc(100vh - 125px); overflow-y: auto; }
+    .hymn-card {
+      display: flex; align-items: center; padding: 15px 20px;
+      border-bottom: 1px solid var(--border); cursor: pointer;
+    }
+    .hymn-num { width: 55px; font-size: 17px; font-weight: bold; color: var(--primary); flex-shrink: 0; }
+    .hymn-title { flex: 1; font-size: 17px; font-weight: 500; }
+    .star-icon { font-size: 22px; color: #d1d5db; }
     .star-icon.active { color: var(--star-color); }
+    .hl { background: #ffe58a; border-radius: 3px; padding: 0 1px; color: #191f28; }
+    body.dark-mode .hl { background: #7c6a11; color: #fff; }
 
-    /* 가사 뷰어: 스와이프가 잘 작동하도록 설정 */
+    /* 최근 본 곡 */
+    .recent-row {
+      display: flex; gap: 8px; padding: 12px 16px; overflow-x: auto;
+      border-bottom: 1px solid var(--border); align-items: center;
+      -webkit-overflow-scrolling: touch;
+    }
+    .recent-row::-webkit-scrollbar { display: none; }
+    .recent-label { font-size: 13px; color: var(--sub-text); flex-shrink: 0; font-weight: bold; }
+    .recent-chip {
+      flex-shrink: 0; background: var(--card-bg); border: 1px solid var(--border);
+      border-radius: 18px; padding: 7px 13px; font-size: 13px; cursor: pointer;
+      white-space: nowrap; color: var(--text);
+    }
+    .recent-chip b { color: var(--primary); margin-right: 4px; }
+
+    /* 분류 메뉴 */
+    .cat-card {
+      display: flex; align-items: center; gap: 12px; padding: 15px 20px;
+      border-bottom: 1px solid var(--border); cursor: pointer;
+    }
+    .cat-icon {
+      width: 38px; height: 38px; border-radius: 10px; background: var(--card-bg);
+      border: 1px solid var(--border); display: flex; align-items: center;
+      justify-content: center; font-size: 18px; flex-shrink: 0;
+    }
+    .cat-name { flex: 1; font-size: 17px; font-weight: 600; }
+    .cat-range { font-size: 13px; color: var(--sub-text); white-space: nowrap; }
+    .cat-arrow { color: var(--sub-text); font-size: 20px; }
+
+    .cat-header {
+      display: flex; align-items: center; gap: 12px; padding: 10px 16px;
+      border-bottom: 1px solid var(--border); background: var(--bg);
+    }
+    .cat-back {
+      padding: 7px 12px; border: 1px solid var(--border); background: var(--card-bg);
+      color: var(--text); border-radius: 8px; font-size: 14px; cursor: pointer; white-space: nowrap;
+    }
+    .cat-cur { display: flex; align-items: baseline; gap: 8px; overflow: hidden; }
+    .cat-cur b { font-size: 17px; white-space: nowrap; }
+    .cat-cur span { font-size: 13px; color: var(--sub-text); white-space: nowrap; }
+
+    .chip-row {
+      display: flex; gap: 8px; padding: 10px 16px; overflow-x: auto;
+      border-bottom: 1px solid var(--border); -webkit-overflow-scrolling: touch;
+    }
+    .chip-row::-webkit-scrollbar { display: none; }
+    .chip {
+      padding: 7px 14px; border-radius: 18px; border: 1px solid var(--border);
+      background: var(--card-bg); color: var(--text); font-size: 13px; font-weight: 500;
+      white-space: nowrap; cursor: pointer; flex-shrink: 0;
+    }
+    .chip.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+
+    /* 예배 순서(플레이리스트) */
+    .pl-song {
+      display: flex; align-items: center; padding: 12px 16px;
+      border-bottom: 1px solid var(--border); cursor: pointer; gap: 10px;
+    }
+    .pl-order {
+      width: 26px; height: 26px; border-radius: 50%; background: var(--primary);
+      color: #fff; font-size: 13px; font-weight: bold; display: flex;
+      align-items: center; justify-content: center; flex-shrink: 0;
+    }
+    .pl-title { flex: 1; font-size: 16px; min-width: 0; }
+    .pl-title small { display: block; color: var(--sub-text); font-size: 12px; }
+    .pl-ctrl {
+      border: 1px solid var(--border); background: var(--card-bg); color: var(--text);
+      width: 30px; height: 30px; border-radius: 7px; font-size: 13px; cursor: pointer;
+      flex-shrink: 0; line-height: 1;
+    }
+    .pl-actions { display: flex; gap: 8px; padding: 10px 16px; border-bottom: 1px solid var(--border); }
+    .pl-actions button {
+      flex: 1; padding: 9px 0; border: 1px solid var(--border); background: var(--card-bg);
+      color: var(--text); border-radius: 8px; font-size: 14px; cursor: pointer;
+    }
+    .pl-actions button.primary { background: var(--primary); color: #fff; border-color: var(--primary); }
+
+    /* 가사 뷰어 */
     #viewer {
       display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
       background: var(--bg); flex-direction: column; z-index: 200;
-      touch-action: pan-y; /* 세로 스크롤은 브라우저에 맡기고, 가로는 우리가 가로챔 */
     }
-    .viewer-header { padding: 0 16px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; background: var(--bg); height: 52px; }
-    .viewer-title { font-size: 20px; font-weight: bold; max-width: 55%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .font-btns { display: flex; gap: 4px; }
-    .font-btns button { padding: 6px 8px; border: 1px solid var(--border); background: var(--card-bg); color: var(--text); border-radius: 4px; font-size: 14px; }
-    
-    .viewer-lyrics { flex: 1; padding: 20px; overflow-y: auto; line-height: 1.5; font-size: 28px; }
-    
-    /* 화면 전환 시 깜빡임 효과 */
-    .fade-in { animation: fadeIn 0.2s ease-in; }
-    @keyframes fadeIn { from { opacity: 0.5; } to { opacity: 1; } }
+    .viewer-header {
+      padding: 12px 16px; border-bottom: 1px solid var(--border);
+      display: flex; justify-content: space-between; align-items: center; gap: 6px;
+    }
+    .viewer-title {
+      font-size: 17px; font-weight: bold; max-width: 46%; white-space: nowrap;
+      overflow: hidden; text-overflow: ellipsis;
+    }
+    .font-btns { display: flex; gap: 5px; }
+    .font-btns button {
+      padding: 6px 9px; border: 1px solid var(--border); background: var(--card-bg);
+      color: var(--text); border-radius: 6px; font-size: 13px; font-weight: bold; cursor: pointer;
+    }
+    .viewer-tools {
+      display: flex; gap: 6px; padding: 8px 12px; border-bottom: 1px solid var(--border);
+      justify-content: flex-end; overflow-x: auto;
+    }
+    .viewer-tools::-webkit-scrollbar { display: none; }
+    .viewer-tools button {
+      padding: 7px 12px; border: 1px solid var(--border); background: var(--card-bg);
+      color: var(--text); border-radius: 8px; font-size: 13.5px; font-weight: 500;
+      cursor: pointer; white-space: nowrap; flex-shrink: 0;
+    }
+    .viewer-tools button:active { background: var(--primary); color: #fff; }
+    .next-bar {
+      display: flex; align-items: center; gap: 10px; padding: 10px 16px;
+      background: var(--card-bg); border-bottom: 1px solid var(--border);
+      cursor: pointer;
+    }
+    .next-bar b { color: var(--primary); }
+    .next-bar span { flex: 1; font-size: 14px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+    .viewer-lyrics {
+      flex: 1; padding: 24px 20px; overflow-y: auto; white-space: pre-wrap;
+      line-height: 1.7; user-select: text; -webkit-user-select: text;
+    }
 
-    .verse-block { margin-top: 18px; }
-    .verse-block:first-child { margin-top: 0; }
-    .chorus-text { color: var(--chorus-color) !important; font-weight: bold; }
+    /* 프로젝터 모드 */
+    #projector {
+      display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      background: var(--bg); z-index: 400; flex-direction: column;
+    }
+    .proj-top {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 12px 16px; border-bottom: 1px solid var(--border);
+    }
+    .proj-top .title { font-size: 15px; font-weight: bold; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+    .proj-top .count { font-size: 14px; color: var(--sub-text); font-weight: bold; }
+    .proj-slide {
+      flex: 1; display: flex; align-items: center; justify-content: center;
+      padding: 30px 26px; text-align: center; cursor: pointer; overflow-y: auto;
+    }
+    .proj-text {
+      font-size: clamp(1.9rem, 8.5vw, 4.2rem); line-height: 1.55; font-weight: 600;
+      white-space: pre-wrap; user-select: none; -webkit-user-select: none;
+    }
+    .proj-dots { display: flex; gap: 7px; justify-content: center; padding: 14px 0 20px; }
+    .proj-dot {
+      width: 9px; height: 9px; border-radius: 50%; background: var(--border); cursor: pointer;
+    }
+    .proj-dot.active { background: var(--primary); width: 24px; border-radius: 5px; }
+
+    /* 모달 */
+    #modalWrap {
+      display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(0,0,0,0.45); z-index: 500; align-items: center; justify-content: center;
+      padding: 20px;
+    }
+    .modal {
+      background: var(--bg); border-radius: 14px; padding: 20px 18px; width: 100%;
+      max-width: 360px; max-height: 80vh; overflow-y: auto; border: 1px solid var(--border);
+    }
+    .modal h3 { font-size: 17px; margin-bottom: 14px; }
+    .modal .m-row {
+      display: block; width: 100%; text-align: left; padding: 12px 14px; margin-bottom: 8px;
+      border: 1px solid var(--border); border-radius: 9px; background: var(--card-bg);
+      color: var(--text); font-size: 15px; cursor: pointer;
+    }
+    .modal .m-row small { color: var(--sub-text); }
+    .modal textarea, .modal input[type=text] {
+      width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px;
+      background: var(--card-bg); color: var(--text); font-size: 14px; outline: none;
+      margin-bottom: 10px; user-select: text; -webkit-user-select: text;
+    }
+    .modal .m-btns { display: flex; gap: 8px; margin-top: 6px; }
+    .modal .m-btns button {
+      flex: 1; padding: 11px 0; border: none; border-radius: 9px; font-size: 15px;
+      font-weight: bold; cursor: pointer;
+    }
+    .m-ok { background: var(--primary); color: #fff; }
+    .m-cancel { background: var(--card-bg); color: var(--text); border: 1px solid var(--border) !important; }
+    .m-note { font-size: 12.5px; color: var(--sub-text); line-height: 1.55; margin: 10px 0; }
+    .m-sec { border-top: 1px solid var(--border); margin-top: 14px; padding-top: 14px; }
+    .m-sec-title { font-size: 14px; font-weight: bold; margin-bottom: 10px; }
+
+    /* 토스트 */
+    #toast {
+      position: fixed; bottom: 90px; left: 50%; transform: translateX(-50%);
+      background: rgba(0, 0, 0, 0.78); color: #fff; padding: 10px 22px;
+      border-radius: 22px; font-size: 14px; font-weight: 500; opacity: 0;
+      transition: opacity 0.3s; pointer-events: none; z-index: 600; white-space: nowrap;
+    }
+    #toast.show { opacity: 1; }
   </style>
 </head>
 <body>
+
+  <!-- 상단 검색바 -->
   <header>
-    <input type="text" id="searchInput" class="search-input" placeholder="검색">
-    <button class="btn-icon" onclick="toggleTheme()">☀️/🌙</button>
+    <input type="text" id="searchInput" class="search-input" placeholder="장 번호, 제목, 가사, 초성(ㅅㅈ) 검색">
+    <button class="btn-icon" onclick="toggleDarkMode()">🌙</button>
+    <button class="btn-icon" onclick="openSettings()">⚙️</button>
   </header>
+
+  <!-- 탭 메뉴 -->
   <div class="tabs">
-    <div class="tab active" id="tabAll" onclick="changeTab('all')">전체</div>
+    <div class="tab active" id="tabAll" onclick="changeTab('all')">전체 찬송가</div>
+    <div class="tab" id="tabCat" onclick="changeTab('cat')">📂 분류별</div>
+    <div class="tab" id="tabList" onclick="changeTab('list')">📋 예배순서</div>
     <div class="tab" id="tabFav" onclick="changeTab('fav')">⭐ 즐겨찾기</div>
   </div>
+
+  <!-- 목록 -->
   <div class="list-view" id="hymnList"></div>
 
+  <!-- 가사 뷰어 -->
   <div id="viewer">
     <div class="viewer-header">
-      <button class="btn-icon" onclick="closeViewer()">⬅ 뒤로</button>
+      <button class="font-btns" style="padding: 8px 12px;" onclick="history.back()">⬅ 뒤로</button>
       <div class="viewer-title" id="viewerTitle"></div>
       <div class="font-btns">
         <button onclick="changeFontSize(-2)">가-</button>
         <button onclick="changeFontSize(2)">가+</button>
-        <button id="viewerStar" class="btn-icon" onclick="toggleFavCurrent()">★</button>
+        <button id="viewerStar" onclick="toggleFavCurrent()" style="font-size:15px;">★</button>
       </div>
     </div>
+    <div class="viewer-tools">
+      <button onclick="addToPlaylistModal()">＋ 순서</button>
+      <button onclick="enterProjector()">📽️ 크게</button>
+      <button onclick="copyLyrics()">📋 복사</button>
+      <button onclick="shareLyrics()">🔗 공유</button>
+    </div>
+    <div id="nextBar" class="next-bar" style="display:none;" onclick="openNextInList()"></div>
     <div class="viewer-lyrics" id="viewerLyrics"></div>
   </div>
 
+  <!-- 프로젝터 모드 -->
+  <div id="projector">
+    <div class="proj-top">
+      <button class="cat-back" onclick="history.back()">✕ 닫기</button>
+      <div class="title" id="projTitle"></div>
+      <div class="count" id="projCount"></div>
+    </div>
+    <div class="proj-slide" id="projSlide" onclick="projTap(event)"></div>
+    <div class="proj-dots" id="projDots"></div>
+  </div>
+
+  <!-- 모달 -->
+  <div id="modalWrap" onclick="if(event.target===this) closeModal()">
+    <div class="modal" id="modalBox"></div>
+  </div>
+
+  <!-- 토스트 -->
+  <div id="toast"></div>
+
   <script>
     let hymns = [];
-    let currentTab = 'all';
     let currentHymn = null;
-    let fontSize = parseInt(localStorage.getItem('hymn_size') || '28', 10);
+    let fontSize = parseInt(localStorage.getItem('hymn_size') || '22', 10);
     let favorites = JSON.parse(localStorage.getItem('hymn_favs') || '[]');
+    let recents = JSON.parse(localStorage.getItem('hymn_recent') || '[]');
+    let playlists = JSON.parse(localStorage.getItem('hymn_lists') || '[]');
+    let playlistCtx = null;          // {id, idx} 뷰어를 예배순서에서 열었을 때
+    let pendingDelete = false;       // 예배순서 삭제 2단계 확인
 
-    fetch('hymns.json?v=6')
+    // 화면 상태 (뒤로가기 연동)
+    let view = { screen: 'home', tab: 'all' };
+
+    // 새찬송가(645장) 공식 분류
+    const CATEGORIES = [
+      { icon:'🙏', name:'예배', from:1, to:62, subs:[['송영',1,7],['경배',8,17],['찬양',18,41],['주일',42,48],['봉헌',49,52],['예배 마침',53,57],['아침과 저녁',58,62]] },
+      { icon:'✨', name:'성부 하나님', from:63, to:79, subs:[['창조주',63,77],['섭리',78,79]] },
+      { icon:'✝️', name:'성자 하나님', from:80, to:181, subs:[['예수 그리스도',80,96],['구주 강림',97,105],['성탄',106,129],['주현',130,133],['생애',134,138],['종려주일',139,142],['고난',143,158],['부활',159,173],['재림',174,181]] },
+      { icon:'🕊️', name:'성령', from:182, to:197, subs:[['성령강림',182,195],['은사',196,197]] },
+      { icon:'📖', name:'성경', from:198, to:206, subs:[] },
+      { icon:'⛪', name:'교회', from:207, to:223, subs:[['하나님 나라',207,210],['헌신과 봉사',211,218],['성도의 교제',219,223]] },
+      { icon:'🍞', name:'성례', from:224, to:233, subs:[['세례(침례)',224,226],['성찬',227,233]] },
+      { icon:'👑', name:'천국', from:234, to:249, subs:[] },
+      { icon:'🔓', name:'구원', from:250, to:289, subs:[['회개와 용서',250,282],['거듭남',283,285],['거룩한 생활',286,289]] },
+      { icon:'🚶', name:'그리스도인의 삶', from:290, to:494, subs:[['은혜와 사랑',290,310],['소명과 충성',311,335],['시련과 극복',336,345],['분투와 승리',346,360],['기도와 간구',361,369],['인도와 보호',370,403],['평안과 위로',404,419],['성결한 생활',420,426],['감사의 생활',427,429],['주와 동행',430,447],['제자의 도리',448,469],['신유의 권능',470,474],['화해와 평화',475,475],['자연과 환경',476,478],['미래와 소망',479,494]] },
+      { icon:'📣', name:'전도와 선교', from:495, to:549, subs:[['전도',495,501],['세계선교',502,512],['전도와 교훈',513,518],['부르심과 영접',519,539],['믿음과 확신',540,549]] },
+      { icon:'🎉', name:'행사와 절기', from:550, to:594, subs:[['새해(송구영신)',550,554],['가정',555,559],['어린이',560,570],['젊은이',571,575],['어버이',576,579],['나라사랑',580,584],['종교개혁기념일',585,586],['감사절',587,594]] },
+      { icon:'💒', name:'예식', from:595, to:613, subs:[['임직',595,597],['헌당',598,600],['혼례',601,605],['장례',606,610],['추모',611,613]] },
+      { icon:'🎶', name:'경배와 찬양', from:614, to:624, subs:[] },
+      { icon:'🕊️', name:'영창과 기도송', from:625, to:645, subs:[['입례송',625,629],['기도송',630,632],['헌금응답송',633,634],['주기도송',635,636],['말씀응답송',637,637],['축도송',638,639],['아멘송',640,645]] },
+    ];
+
+    const $ = id => document.getElementById(id);
+
+    // ================== 화면 이동 (스마트폰 뒤로가기 연동) ==================
+    history.replaceState(view, '');
+    window.addEventListener('popstate', e => {
+      view = (e.state && e.state.screen) ? e.state : { screen: 'home', tab: 'all' };
+      applyView();
+    });
+
+    function go(v, replace) {
+      view = v;
+      if (replace) history.replaceState(v, '');
+      else history.pushState(v, '');
+      applyView();
+    }
+
+    function applyView() {
+      closeModal();
+      if (view.screen === 'viewer') {
+        const h = hymns.find(x => x.num === view.num);
+        if (h) {
+          showViewer(h);
+          if (view.proj) openProjector(h); else closeProjector();
+          return;
+        }
+        view = { screen: 'home', tab: 'all' };
+      }
+      closeProjector();
+      $('viewer').style.display = 'none';
+
+      const activeTab = (view.screen === 'category' || view.screen === 'playlist') ? view.tab : view.tab;
+      $('tabAll').className = 'tab ' + (activeTab === 'all' ? 'active' : '');
+      $('tabCat').className = 'tab ' + (activeTab === 'cat' ? 'active' : '');
+      $('tabList').className = 'tab ' + (activeTab === 'list' ? 'active' : '');
+      $('tabFav').className = 'tab ' + (activeTab === 'fav' ? 'active' : '');
+
+      if (view.screen === 'category') renderCategory();
+      else if (view.screen === 'playlist') renderPlaylistDetail(view.id);
+      else renderHome();
+    }
+    // =========================================================================
+
+    // 데이터 로드
+    fetch('hymns.json')
       .then(res => res.json())
-      .then(data => { hymns = data; render(); });
+      .then(data => { hymns = data; applyView(); })
+      .catch(() => alert('hymns.json 파일을 불러오지 못했습니다. 같은 폴더에 있는지 확인해주세요.'));
 
-    function render() {
-      const list = document.getElementById('hymnList');
-      const q = document.getElementById('searchInput').value.trim().toLowerCase();
-      list.innerHTML = '';
-      const filtered = hymns.filter(h => {
-        if (currentTab === 'fav' && !favorites.includes(Number(h.num))) return false;
-        return !q || h.num.toString() === q || h.title.includes(q) || h.lyrics.includes(q);
-      });
-      filtered.forEach(h => {
+    // ================== 검색 (번호/제목/가사/초성) ==================
+    const CHO = 'ㄱㄲㄴㄷㄸㄹㅁㅂㅃㅅㅆㅇㅈㅉㅊㅋㅌㅍㅎ';
+    function toChosung(s) {
+      let out = '';
+      for (const c of s) {
+        const code = c.charCodeAt(0);
+        out += (code >= 0xAC00 && code <= 0xD7A3) ? CHO[Math.floor((code - 0xAC00) / 588)] : c;
+      }
+      return out;
+    }
+    function isChosungQuery(q) { return /^[ㄱ-ㅎ\s]+$/.test(q) && q.replace(/\s/g, '').length > 0; }
+
+    function matchQ(h, q) {
+      if (!q) return true;
+      if (isChosungQuery(q)) return toChosung(h.title).includes(q.replace(/\s/g, ''));
+      return h.num.toString() === q ||
+             h.title.toLowerCase().includes(q) ||
+             h.lyrics.toLowerCase().includes(q);
+    }
+
+    function esc(s) {
+      return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+    function hlTitle(title, q) {
+      if (!q || isChosungQuery(q)) return esc(title);
+      const idx = title.toLowerCase().indexOf(q);
+      if (idx < 0) return esc(title);
+      return esc(title.slice(0, idx)) +
+             '<span class="hl">' + esc(title.slice(idx, idx + q.length)) + '</span>' +
+             esc(title.slice(idx + q.length));
+    }
+
+    // ================== 공통 목록 렌더링 ==================
+    function renderHymnRows(container, arr, q) {
+      if (arr.length === 0) {
+        container.innerHTML += '<div style="text-align:center; padding: 40px; color: var(--sub-text);">검색 결과가 없습니다.</div>';
+        return;
+      }
+      arr.forEach(h => {
         const item = document.createElement('div');
         item.className = 'hymn-card';
-        item.innerHTML = `<div class="hymn-num">${h.num}장</div><div class="hymn-title">${h.title}</div><div class="star-icon ${favorites.includes(Number(h.num))?'active':''}">★</div>`;
-        item.onclick = () => openViewer(h);
-        list.appendChild(item);
+        item.innerHTML = `
+          <div class="hymn-num">${h.num}장</div>
+          <div class="hymn-title">${hlTitle(h.title, q || '')}</div>
+          <div class="star-icon ${favorites.includes(h.num) ? 'active' : ''}">★</div>
+        `;
+        item.onclick = () => openHymn(h.num);
+        container.appendChild(item);
       });
     }
 
-    function formatLyricsHTML(text) {
-      if (!text) return '';
-      const lines = text.split('\n');
-      let formattedHTML = '';
-      let inChorus = false;
-      lines.forEach(line => {
-        let trimmed = line.trim();
-        if (!trimmed) return;
-        const isNewVerse = /^\s*(\(\d+\)|\d+\.|\d+절)/.test(trimmed);
-        const isChorusStart = /후렴/.test(trimmed);
-        if (isNewVerse) inChorus = false;
-        else if (isChorusStart) inChorus = true;
-        let classNames = [];
-        if (isNewVerse) classNames.push('verse-block');
-        if (inChorus) classNames.push('chorus-text');
-        formattedHTML += `<div class="${classNames.join(' ')}">${trimmed}</div>`;
-      });
-      return formattedHTML;
+    // ================== 홈 ==================
+    function renderHome() {
+      const list = $('hymnList');
+      const q = $('searchInput').value.trim().toLowerCase();
+      list.innerHTML = '';
+      $('searchInput').placeholder = isChosungQuery(q) ? '초성 검색: ' + q : '장 번호, 제목, 가사, 초성(ㅅㅈ) 검색';
+
+      if (view.tab === 'cat') { renderCatMenu(list); return; }
+      if (view.tab === 'list') { renderPlaylistTab(list); return; }
+
+      // 최근 본 곡 (전체 탭, 검색 없을 때)
+      if (view.tab === 'all' && !q && recents.length > 0) {
+        const row = document.createElement('div');
+        row.className = 'recent-row';
+        row.innerHTML = '<div class="recent-label">🕘 최근</div>';
+        recents.forEach(num => {
+          const h = hymns.find(x => x.num === num);
+          if (!h) return;
+          const chip = document.createElement('div');
+          chip.className = 'recent-chip';
+          chip.innerHTML = `<b>${h.num}</b>${esc(h.title.length > 10 ? h.title.slice(0, 10) + '…' : h.title)}`;
+          chip.onclick = () => openHymn(num);
+          row.appendChild(chip);
+        });
+        list.appendChild(row);
+      }
+
+      let arr = hymns.filter(h => (view.tab !== 'fav' || favorites.includes(h.num)) && matchQ(h, q));
+      // 번호 검색 시 정확히 일치하는 장을 최상단으로
+      if (/^\d+$/.test(q)) arr.sort((a, b) => (b.num.toString() === q) - (a.num.toString() === q) || a.num - b.num);
+      renderHymnRows(list, arr, q);
     }
 
-    function openViewer(h) {
-      if (!h) return;
+    function renderCatMenu(list) {
+      CATEGORIES.forEach((c, i) => {
+        const n = hymns.filter(h => h.num >= c.from && h.num <= c.to).length;
+        const div = document.createElement('div');
+        div.className = 'cat-card';
+        div.innerHTML = `
+          <div class="cat-icon">${c.icon}</div>
+          <div class="cat-name">${c.name}</div>
+          <div class="cat-range">${c.from}–${c.to}장 · ${n}곡</div>
+          <div class="cat-arrow">›</div>
+        `;
+        div.onclick = () => go({ screen: 'category', tab: 'cat', cat: i, sub: -1 });
+        list.appendChild(div);
+      });
+    }
+
+    // ================== 분류 상세 ==================
+    function renderCategory() {
+      const list = $('hymnList');
+      const q = $('searchInput').value.trim().toLowerCase();
+      list.innerHTML = '';
+      const c = CATEGORIES[view.cat];
+
+      const bar = document.createElement('div');
+      bar.className = 'cat-header';
+      bar.innerHTML = `
+        <button class="cat-back" onclick="history.back()">‹ 분류 목록</button>
+        <div class="cat-cur"><b>${c.name}</b><span>${c.from}–${c.to}장</span></div>
+      `;
+      list.appendChild(bar);
+
+      if (c.subs.length) {
+        const row = document.createElement('div');
+        row.className = 'chip-row';
+        const mkChip = (label, idx) => {
+          const chip = document.createElement('div');
+          chip.className = 'chip' + (view.sub === idx ? ' active' : '');
+          chip.textContent = label;
+          chip.onclick = () => go({ screen: 'category', tab: 'cat', cat: view.cat, sub: idx }, true);
+          return chip;
+        };
+        row.appendChild(mkChip('전체', -1));
+        c.subs.forEach((s, j) => row.appendChild(mkChip(s[0], j)));
+        list.appendChild(row);
+      }
+
+      const from = view.sub >= 0 ? c.subs[view.sub][1] : c.from;
+      const to   = view.sub >= 0 ? c.subs[view.sub][2] : c.to;
+      const arr = hymns.filter(h => h.num >= from && h.num <= to && matchQ(h, q));
+      renderHymnRows(list, arr, q);
+    }
+
+    // ================== 예배 순서 (플레이리스트) ==================
+    const saveLists = () => localStorage.setItem('hymn_lists', JSON.stringify(playlists));
+    const getList = id => playlists.find(p => p.id === id);
+
+    function renderPlaylistTab(list) {
+      const wrap = document.createElement('div');
+      wrap.className = 'pl-actions';
+      wrap.innerHTML = `<button class="primary" onclick="promptNewList()">＋ 새 예배 순서 만들기</button>`;
+      list.appendChild(wrap);
+
+      if (playlists.length === 0) {
+        list.innerHTML += '<div style="text-align:center; padding: 40px 20px; color: var(--sub-text); line-height:1.7;">저장된 예배 순서가 없습니다.<br>찬송가를 연 뒤 <b>＋ 순서</b> 버튼으로<br>곡을 추가할 수 있어요.</div>';
+        return;
+      }
+      playlists.forEach(p => {
+        const div = document.createElement('div');
+        div.className = 'cat-card';
+        div.innerHTML = `
+          <div class="cat-icon">📋</div>
+          <div class="cat-name">${esc(p.name)}</div>
+          <div class="cat-range">${p.nums.length}곡</div>
+          <div class="cat-arrow">›</div>
+        `;
+        div.onclick = () => go({ screen: 'playlist', tab: 'list', id: p.id });
+        list.appendChild(div);
+      });
+    }
+
+    function renderPlaylistDetail(id) {
+      const list = $('hymnList');
+      const p = getList(id);
+      list.innerHTML = '';
+      if (!p) { renderPlaylistTab(list); return; }
+
+      const bar = document.createElement('div');
+      bar.className = 'cat-header';
+      bar.innerHTML = `
+        <button class="cat-back" onclick="history.back()">‹ 목록</button>
+        <div class="cat-cur"><b>${esc(p.name)}</b><span>${p.nums.length}곡</span></div>
+      `;
+      list.appendChild(bar);
+
+      const actions = document.createElement('div');
+      actions.className = 'pl-actions';
+      actions.innerHTML = `
+        <button class="primary" onclick="plStart('${id}')">▶ 이 순서로 보기</button>
+        <button onclick="plRename('${id}')">✏️ 이름변경</button>
+        <button id="plDelBtn" onclick="plDelete('${id}')">${pendingDelete ? '❗ 정말 삭제?' : '🗑 삭제'}</button>
+      `;
+      list.appendChild(actions);
+
+      if (p.nums.length === 0) {
+        list.innerHTML += '<div style="text-align:center; padding: 40px 20px; color: var(--sub-text);">아직 곡이 없습니다.<br>찬송가를 연 뒤 <b>＋ 순서</b>에서 이 순서를 선택하세요.</div>';
+        return;
+      }
+      p.nums.forEach((num, idx) => {
+        const h = hymns.find(x => x.num === num);
+        const row = document.createElement('div');
+        row.className = 'pl-song';
+        row.innerHTML = `
+          <div class="pl-order">${idx + 1}</div>
+          <div class="pl-title">${h ? h.num + '장 ' + esc(h.title) : num + '장'}<small>${h ? '' : '（데이터 없음）'}</small></div>
+          <button class="pl-ctrl" onclick="event.stopPropagation(); plMove('${id}',${idx},-1)">▲</button>
+          <button class="pl-ctrl" onclick="event.stopPropagation(); plMove('${id}',${idx},1)">▼</button>
+          <button class="pl-ctrl" onclick="event.stopPropagation(); plRemove('${id}',${idx})">✕</button>
+        `;
+        row.onclick = () => plOpen(id, idx);
+        list.appendChild(row);
+      });
+    }
+
+    function promptNewList(afterCreate) {
+      promptModal('새 예배 순서', '예: 주일 오전 예배', name => {
+        if (!name.trim()) return;
+        const p = { id: 'pl' + Date.now(), name: name.trim(), nums: [] };
+        playlists.unshift(p);
+        saveLists();
+        if (afterCreate) afterCreate(p.id); else { renderHome(); showToast("'" + p.name + "' 생성됨"); }
+      });
+    }
+
+    function plOpen(id, idx) {
+      const p = getList(id);
+      if (!p || !p.nums[idx]) return;
+      openHymn(p.nums[idx], { id, idx });
+    }
+    function plStart(id) { plOpen(id, 0); }
+    function plMove(id, idx, dir) {
+      const p = getList(id); if (!p) return;
+      const j = idx + dir;
+      if (j < 0 || j >= p.nums.length) return;
+      [p.nums[idx], p.nums[j]] = [p.nums[j], p.nums[idx]];
+      saveLists(); renderPlaylistDetail(id);
+    }
+    function plRemove(id, idx) {
+      const p = getList(id); if (!p) return;
+      p.nums.splice(idx, 1);
+      saveLists(); renderPlaylistDetail(id);
+    }
+    function plRename(id) {
+      const p = getList(id); if (!p) return;
+      promptModal('이름 변경', '', name => {
+        if (!name.trim()) return;
+        p.name = name.trim(); saveLists(); renderPlaylistDetail(id); showToast('이름을 변경했습니다');
+      }, p.name);
+    }
+    function plDelete(id) {
+      if (!pendingDelete) { pendingDelete = true; renderPlaylistDetail(id); setTimeout(() => { pendingDelete = false; const b = $('plDelBtn'); if (b) b.textContent = '🗑 삭제'; }, 2500); return; }
+      pendingDelete = false;
+      playlists = playlists.filter(p => p.id !== id);
+      saveLists(); history.back();
+    }
+
+    function addToPlaylistModal() {
+      if (!currentHymn) return;
+      let html = `<h3>＋ 어느 예배 순서에 추가할까요?</h3>`;
+      html += `<button class="m-row" onclick="promptNewList(addThenClose)">➕ <b>새 순서 만들기</b></button>`;
+      if (playlists.length === 0) {
+        html += `<div class="m-note">저장된 순서가 없습니다. 새 순서를 만들어 보세요.</div>`;
+      }
+      playlists.forEach(p => {
+        html += `<button class="m-row" onclick="addToList('${p.id}')">📋 ${esc(p.name)} <small>· ${p.nums.length}곡</small></button>`;
+      });
+      openModal(html);
+    }
+    function addToList(id) {
+      if (!currentHymn) return;
+      const p = getList(id); if (!p) return;
+      p.nums.push(currentHymn.num);
+      saveLists(); closeModal();
+      showToast(`'${p.name}'에 ${currentHymn.num}장 추가됨`);
+    }
+    function addThenClose(id) {
+      if (!currentHymn) return;
+      const p = getList(id); if (!p) return;
+      p.nums.push(currentHymn.num);
+      saveLists(); closeModal();
+      showToast(`'${p.name}' 생성 · ${currentHymn.num}장 추가됨`);
+    }
+
+    function openNextInList() {
+      if (!playlistCtx) return;
+      const p = getList(playlistCtx.id);
+      if (!p) return;
+      const idx = playlistCtx.idx + 1;
+      if (idx >= p.nums.length) return;
+      openHymn(p.nums[idx], { id: p.id, idx });
+    }
+
+    // ================== 뷰어 ==================
+    function openHymn(num, ctx) {
+      playlistCtx = ctx || null;
+      pushRecent(num);
+      go({ screen: 'viewer', tab: view.tab, num });
+    }
+
+    function showViewer(h) {
       currentHymn = h;
-      document.getElementById('viewerTitle').innerText = `${h.num}장 ${h.title}`;
-      const lb = document.getElementById('viewerLyrics');
-      lb.innerHTML = formatLyricsHTML(h.lyrics);
-      lb.style.fontSize = fontSize + 'px';
-      lb.scrollTop = 0;
-      
-      // 전환 효과 적용
-      lb.classList.remove('fade-in');
-      void lb.offsetWidth; // 리플로우 강제 발생
-      lb.classList.add('fade-in');
-
-      document.getElementById('viewerStar').style.color = favorites.includes(Number(h.num)) ? '#f59e0b' : 'inherit';
-      document.getElementById('viewer').style.display = 'flex';
+      $('viewerTitle').innerText = `${h.num}장 ${h.title}`;
+      const lyricsBox = $('viewerLyrics');
+      lyricsBox.innerText = h.lyrics;
+      lyricsBox.style.fontSize = fontSize + 'px';
+      updateViewerStar();
+      updateNextBar();
+      $('viewer').style.display = 'flex';
     }
 
-    function closeViewer() { document.getElementById('viewer').style.display = 'none'; render(); }
-    
+    function updateNextBar() {
+      const bar = $('nextBar');
+      if (!playlistCtx) { bar.style.display = 'none'; return; }
+      const p = getList(playlistCtx.id);
+      if (!p) { bar.style.display = 'none'; return; }
+      const idx = playlistCtx.idx;
+      if (idx + 1 >= p.nums.length) {
+        bar.style.display = 'flex';
+        bar.innerHTML = `<span>✔ 순서 마지막 곡입니다 (${p.name} · ${p.nums.length}곡)</span>`;
+        return;
+      }
+      const next = hymns.find(x => x.num === p.nums[idx + 1]);
+      bar.style.display = 'flex';
+      bar.innerHTML = `<b>⏭ 다음</b><span>${idx + 2}/${p.nums.length} · ${next ? next.num + '장 ' + esc(next.title) : ''}</span><b>›</b>`;
+    }
+
+    function pushRecent(num) {
+      recents = [num, ...recents.filter(n => n !== num)].slice(0, 12);
+      localStorage.setItem('hymn_recent', JSON.stringify(recents));
+    }
+
+    // ================== 프로젝터 모드 ==================
+    let projSecs = [], projIdx = 0;
+
+    function enterProjector() {
+      if (!currentHymn) return;
+      go({ screen: 'viewer', tab: view.tab, num: currentHymn.num, proj: 1 });
+    }
+
+    function splitSections(lyrics) {
+      const secs = []; let cur = [];
+      for (const line of lyrics.split('\n')) {
+        if (/^\(\d+\)|^\(후렴/.test(line.trim())) {
+          if (cur.some(x => x.trim())) secs.push(cur);
+          cur = [line.trim()];
+        } else cur.push(line);
+      }
+      if (cur.some(x => x.trim())) secs.push(cur);
+      return secs.map(s => s.join('\n'));
+    }
+
+    function openProjector(h) {
+      projSecs = splitSections(h.lyrics);
+      if (projSecs.length === 0) projSecs = [h.lyrics];
+      projIdx = 0;
+      $('projTitle').innerText = `${h.num}장 ${h.title}`;
+      renderProj();
+      $('projector').style.display = 'flex';
+      keepAwake(true);
+    }
+    function closeProjector() {
+      if ($('projector').style.display === 'flex') {
+        $('projector').style.display = 'none';
+        keepAwake(false);
+      }
+    }
+    function renderProj() {
+      $('projSlide').innerHTML = `<div class="proj-text">${esc(projSecs[projIdx])}</div>`;
+      $('projCount').innerText = `${projIdx + 1} / ${projSecs.length}`;
+      $('projDots').innerHTML = projSecs.map((_, i) =>
+        `<div class="proj-dot ${i === projIdx ? 'active' : ''}" onclick="projGo(${i})"></div>`).join('');
+    }
+    function projTap(e) {
+      const x = e.clientX || 0;
+      if (x < window.innerWidth * 0.3) projGo(projIdx - 1);
+      else projGo(projIdx + 1);
+    }
+    function projGo(i) {
+      projIdx = Math.min(Math.max(0, i), projSecs.length - 1);
+      renderProj();
+    }
+
+    // 화면 꺼짐 방지 (Wake Lock)
+    let wakeLock = null;
+    async function keepAwake(on) {
+      try {
+        if (on && 'wakeLock' in navigator) {
+          wakeLock = await navigator.wakeLock.request('screen');
+        } else if (!on && wakeLock) {
+          await wakeLock.release(); wakeLock = null;
+        }
+      } catch (e) { /* 지원하지 않는 브라우저는 무시 */ }
+    }
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible' && $('projector').style.display === 'flex') keepAwake(true);
+    });
+
+    // ================== 복사 / 공유 ==================
+    function getLyricsText() {
+      return `${currentHymn.num}장 ${currentHymn.title}\n\n${currentHymn.lyrics}`;
+    }
+    async function copyLyrics() {
+      if (!currentHymn) return;
+      try {
+        await navigator.clipboard.writeText(getLyricsText());
+        showToast('📋 가사가 복사되었습니다');
+      } catch (e) {
+        const ta = document.createElement('textarea');
+        ta.value = getLyricsText();
+        ta.style.position = 'fixed'; ta.style.opacity = '0';
+        document.body.appendChild(ta); ta.select();
+        document.execCommand('copy'); ta.remove();
+        showToast('📋 가사가 복사되었습니다');
+      }
+    }
+    async function shareLyrics() {
+      if (!currentHymn) return;
+      const title = `${currentHymn.num}장 ${currentHymn.title}`;
+      if (navigator.share) {
+        try { await navigator.share({ title, text: getLyricsText() }); } catch (e) {}
+      } else await copyLyrics();
+    }
+
+    let toastTimer = null;
+    function showToast(msg) {
+      const t = $('toast');
+      t.innerText = msg;
+      t.classList.add('show');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => t.classList.remove('show'), 1800);
+    }
+
+    // ================== 모달 ==================
+    function openModal(html) { $('modalBox').innerHTML = html; $('modalWrap').style.display = 'flex'; }
+    function closeModal() { $('modalWrap').style.display = 'none'; }
+
+    function promptModal(title, placeholder, cb, value) {
+      openModal(`
+        <h3>${esc(title)}</h3>
+        <input type="text" id="modalInput" placeholder="${esc(placeholder)}" value="${esc(value || '')}">
+        <div class="m-btns">
+          <button class="m-cancel" onclick="closeModal()">취소</button>
+          <button class="m-ok" onclick="(function(){ const v=document.getElementById('modalInput').value; closeModal(); cb(v); })()">확인</button>
+        </div>
+      `);
+      setTimeout(() => { const i = $('modalInput'); if (i) { i.focus(); i.select(); } }, 50);
+    }
+
+    // ================== 설정 (백업/복원/설치) ==================
+    let deferredInstall = null;
+    window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); deferredInstall = e; });
+
+    function openSettings() {
+      const backupData = JSON.stringify({
+        app: 'hymnal-backup', ver: 1,
+        favs: favorites, lists: playlists, recent: recents,
+        size: fontSize, dark: document.body.classList.contains('dark-mode') ? 1 : 0
+      }, null, 1);
+      openModal(`
+        <h3>⚙️ 설정</h3>
+        <div class="m-sec-title">📱 앱으로 설치 (오프라인 사용)</div>
+        <div class="m-note">• Android/Chrome: 브라우저 메뉴 ⋮ → <b>앱 설치</b> 또는 <b>홈 화면에 추가</b><br>• iPhone/Safari: 공유 버튼 → <b>홈 화면에 추가</b><br>• 설치하면 인터넷 없이도 사용할 수 있습니다</div>
+        ${deferredInstall ? `<button class="m-row" onclick="doInstall()">📲 지금 앱 설치하기</button>` : ''}
+        <div class="m-sec">
+          <div class="m-sec-title">💾 백업 (즐겨찾기 + 예배순서)</div>
+          <div class="m-btns">
+            <button class="m-ok" onclick="copyBackup()">클립보드 복사</button>
+            <button class="m-cancel" onclick="downloadBackup()">파일로 저장</button>
+          </div>
+        </div>
+        <div class="m-sec">
+          <div class="m-sec-title">↩️ 복원 (백업 텍스트 붙여넣기)</div>
+          <textarea id="restoreBox" rows="4" placeholder="백업한 텍스트를 여기에 붙여넣으세요"></textarea>
+          <div class="m-btns"><button class="m-ok" onclick="restoreBackup()">복원하기</button></div>
+          <div class="m-note">복원하면 현재 기기의 즐겨찾기/예배순서를 덮어씁니다.</div>
+        </div>
+        <div class="m-btns" style="margin-top:14px;"><button class="m-cancel" onclick="closeModal()">닫기</button></div>
+      `);
+      window._backupData = backupData;
+    }
+    async function copyBackup() {
+      try { await navigator.clipboard.writeText(window._backupData); showToast('📋 백업이 복사되었습니다'); }
+      catch (e) { showToast('복사 실패 — 파일로 저장해 주세요'); }
+    }
+    function downloadBackup() {
+      const blob = new Blob([window._backupData], { type: 'application/json' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = '새찬송가_백업.json';
+      a.click();
+      URL.revokeObjectURL(a.href);
+    }
+    function restoreBackup() {
+      const raw = $('restoreBox').value.trim();
+      if (!raw) { showToast('백업 텍스트를 붙여넣어 주세요'); return; }
+      try {
+        const d = JSON.parse(raw);
+        if (d.app !== 'hymnal-backup') throw 0;
+        if (Array.isArray(d.favs)) { favorites = d.favs; localStorage.setItem('hymn_favs', JSON.stringify(favorites)); }
+        if (Array.isArray(d.lists)) { playlists = d.lists; saveLists(); }
+        if (Array.isArray(d.recent)) { recents = d.recent; localStorage.setItem('hymn_recent', JSON.stringify(recents)); }
+        if (d.size) { fontSize = d.size; localStorage.setItem('hymn_size', d.size); }
+        if (typeof d.dark === 'number') localStorage.setItem('hymn_dark', d.dark);
+        showToast('✅ 복원 완료');
+        setTimeout(() => location.reload(), 600);
+      } catch (e) { showToast('❌ 올바른 백업 데이터가 아닙니다'); }
+    }
+    async function doInstall() {
+      if (!deferredInstall) return;
+      deferredInstall.prompt();
+      await deferredInstall.userChoice;
+      deferredInstall = null;
+      closeModal();
+    }
+
+    // ================== 즐겨찾기 / 글씨크기 / 다크모드 ==================
     function toggleFavCurrent() {
-      const num = Number(currentHymn.num);
-      const idx = favorites.indexOf(num);
-      if (idx > -1) favorites.splice(idx, 1); else favorites.push(num);
+      if (!currentHymn) return;
+      const idx = favorites.indexOf(currentHymn.num);
+      if (idx > -1) favorites.splice(idx, 1); else favorites.push(currentHymn.num);
       localStorage.setItem('hymn_favs', JSON.stringify(favorites));
-      document.getElementById('viewerStar').style.color = favorites.includes(num) ? '#f59e0b' : 'inherit';
+      updateViewerStar();
     }
-    
+    function updateViewerStar() {
+      const star = $('viewerStar');
+      star.style.color = favorites.includes(currentHymn.num) ? '#f59e0b' : 'inherit';
+    }
     function changeFontSize(val) {
-      fontSize = Math.min(Math.max(18, fontSize + val), 48);
-      document.getElementById('viewerLyrics').style.fontSize = fontSize + 'px';
+      fontSize = Math.min(Math.max(16, fontSize + val), 40);
+      $('viewerLyrics').style.fontSize = fontSize + 'px';
       localStorage.setItem('hymn_size', fontSize);
     }
-    function toggleTheme() { document.body.classList.toggle('light-mode'); }
-    function changeTab(tab) {
-      currentTab = tab;
-      document.getElementById('tabAll').className = 'tab ' + (tab === 'all' ? 'active' : '');
-      document.getElementById('tabFav').className = 'tab ' + (tab === 'fav' ? 'active' : '');
-      render();
+    function toggleDarkMode() {
+      document.body.classList.toggle('dark-mode');
+      localStorage.setItem('hymn_dark', document.body.classList.contains('dark-mode') ? '1' : '0');
     }
-    document.getElementById('searchInput').addEventListener('input', render);
+    if (localStorage.getItem('hymn_dark') === '1') document.body.classList.add('dark-mode');
 
-    /* --- [스와이프 로직 강화] --- */
-    let startX = 0;
-    let startY = 0;
-    const viewer = document.getElementById('viewer');
+    // ================== 탭 / 검색 이벤트 ==================
+    function changeTab(tab) {
+      if (view.screen === 'home' && view.tab === tab) return;
+      pendingDelete = false;
+      go({ screen: 'home', tab }, true);
+    }
 
-    viewer.addEventListener('touchstart', (e) => {
-      startX = e.touches[0].clientX;
-      startY = e.touches[0].clientY;
-    }, { passive: true });
-
-    viewer.addEventListener('touchend', (e) => {
-      let endX = e.changedTouches[0].clientX;
-      let endY = e.changedTouches[0].clientY;
-      
-      let diffX = endX - startX;
-      let diffY = endY - startY;
-
-      // 가로 이동이 세로 이동보다 크고, 40px 이상 밀었을 때만 작동
-      if (Math.abs(diffX) > Math.abs(diffY) && Math.abs(diffX) > 40) {
-        let currentNum = Number(currentHymn.num);
-        if (diffX < 0) { // 왼쪽으로 밀기 -> 다음 장
-          let next = hymns.find(h => Number(h.num) === currentNum + 1);
-          if (next) openViewer(next);
-        } else { // 오른쪽으로 밀기 -> 이전 장
-          let prev = hymns.find(h => Number(h.num) === currentNum - 1);
-          if (prev) openViewer(prev);
-        }
+    $('searchInput').addEventListener('input', () => {
+      if (view.screen === 'home' && (view.tab === 'cat' || view.tab === 'list')) {
+        const q = $('searchInput').value.trim();
+        if (q) { go({ screen: 'home', tab: 'all' }, true); return; }
       }
-    }, { passive: true });
+      if (view.screen === 'home') renderHome();
+      else if (view.screen === 'category') renderCategory();
+      else if (view.screen === 'playlist') renderPlaylistDetail(view.id);
+    });
+
+    // 번호 입력 + Enter → 바로 열기
+    $('searchInput').addEventListener('keydown', e => {
+      if (e.key !== 'Enter') return;
+      const q = $('searchInput').value.trim();
+      if (/^\d{1,3}$/.test(q)) {
+        const h = hymns.find(x => x.num === parseInt(q, 10));
+        if (h) { $('searchInput').blur(); openHymn(h.num); }
+      }
+    });
+
+    // Esc → 뒤로가기 (프로젝터/뷰어)
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Escape') history.back();
+    });
+
+    // PWA 서비스 워커 등록 (http/https에서만, file://은 무시)
+    if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1')) {
+      navigator.serviceWorker.register('sw.js').catch(() => {});
+    }
   </script>
 </body>
 </html>
