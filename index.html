@@ -196,8 +196,10 @@
     .next-bar span { flex: 1; font-size: 14px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
     .viewer-lyrics {
       flex: 1; padding: 24px 20px; overflow-y: auto; white-space: pre-wrap;
-      line-height: 1.7; font-weight: bold; user-select: text; -webkit-user-select: text;
+      line-height: 1.5; font-weight: bold; user-select: text; -webkit-user-select: text;
     }
+    /* 절과 절 사이를 확실히 구분 (첫 줄 제외) */
+    .viewer-lyrics .vs:not(:first-child) { margin-top: 1.2em; }
     /* 후렴 구간 색상: 일반모드 짙은 노랑 / 다크모드 노랑 */
     .viewer-lyrics .refrain { color: #b8860b; }
     body.dark-mode .viewer-lyrics .refrain { color: #ffd60a; }
@@ -873,10 +875,13 @@
       let inRef = false;
       return lyrics.split('\n').map(line => {
         const t = line.trim();
+        const isVerse = /^\(\d+\)/.test(t);
         if (t.startsWith('(후렴')) inRef = true;
-        else if (/^\(\d+\)/.test(t)) inRef = false;
-        return inRef ? `<span class="refrain">${esc(line)}</span>` : esc(line);
-      }).join('\n');
+        else if (isVerse) inRef = false;
+        let cls = isVerse ? 'vs' : '';
+        if (inRef) cls += ' refrain';
+        return `<div class="${cls}">${esc(line)}</div>`;
+      }).join('');
     }
 
     // ================== 프로젝터 모드 ==================
