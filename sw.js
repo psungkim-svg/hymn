@@ -1,7 +1,7 @@
 // 새찬송가 앱 서비스 워커 — 오프라인 캐싱
 // html/데이터는 '네트워크 우선': 파일을 올리면 다음 실행 때 자동으로 새 버전이 반영됩니다.
 // (인터넷이 없으면 저장해 둔 복사본으로 보여 줍니다)
-const CACHE = 'hymnal-v2';
+const CACHE = 'hymnal-v3';
 const ASSETS = [
   './',
   './index.html',
