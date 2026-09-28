@@ -226,7 +226,7 @@
       padding: 30px 26px; text-align: center; cursor: pointer; overflow-y: auto;
     }
     .proj-text {
-      font-size: clamp(1.9rem, 8.5vw, 4.2rem); line-height: 1.55; font-weight: 600;
+      line-height: 1.55; font-weight: 600;
       white-space: pre-wrap; user-select: none; -webkit-user-select: none;
     }
     .proj-dots { display: flex; gap: 7px; justify-content: center; padding: 14px 0 20px; }
@@ -268,6 +268,62 @@
     .m-sec { border-top: 1px solid var(--border); margin-top: 14px; padding-top: 14px; }
     .m-sec-title { font-size: 14px; font-weight: bold; margin-bottom: 10px; }
 
+    /* 검색 결과 가사 스니펫 */
+    .hymn-main { flex: 1; min-width: 0; }
+    .hymn-snip {
+      font-size: 13.5px; color: var(--sub-text); line-height: 1.4; margin-top: 2px;
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+
+    /* 번호 키패드 */
+    .kp-display {
+      text-align: center; padding: 10px 0 14px; border-bottom: 1px solid var(--border); margin-bottom: 12px;
+    }
+    .kp-num { font-size: 44px; font-weight: 800; color: var(--primary); line-height: 1.1; letter-spacing: 2px; }
+    .kp-title { font-size: 15px; color: var(--sub-text); margin-top: 4px; height: 21px;
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .kp-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+    .kp-grid button {
+      padding: 15px 0; font-size: 24px; font-weight: 700; border: 1px solid var(--border);
+      background: var(--card-bg); color: var(--text); border-radius: 11px; cursor: pointer;
+    }
+    .kp-grid button:active { background: var(--primary); color: #fff; }
+    .kp-grid button.kp-go { background: var(--primary); color: #fff; border-color: var(--primary); font-size: 19px; }
+    .kp-grid button.kp-go:disabled { opacity: .4; }
+
+    /* 글자 크기 슬라이더 */
+    .size-row { display: flex; align-items: center; gap: 10px; margin: 6px 0 2px; }
+    .size-row input[type=range] { flex: 1; accent-color: var(--primary); }
+    .size-row .size-val { font-size: 13px; color: var(--sub-text); width: 44px; text-align: right; }
+    .size-prev { font-weight: bold; line-height: 1.5; padding: 10px 12px; background: var(--card-bg);
+      border: 1px solid var(--border); border-radius: 9px; margin-top: 8px; }
+
+    /* 즐겨찾기 정렬 */
+    .fav-bar { display: flex; gap: 8px; padding: 10px 16px; border-bottom: 1px solid var(--border); align-items: center; }
+    .fav-bar .chip { flex-shrink: 0; }
+    .fav-bar .spacer { flex: 1; }
+    .drag-handle {
+      font-size: 20px; color: var(--sub-text); padding: 0 10px 0 2px; cursor: grab;
+      touch-action: none; flex-shrink: 0; user-select: none;
+    }
+    .hymn-card.dragging { opacity: .55; background: var(--card-bg); }
+    .hymn-card.drop-target { border-top: 2px solid var(--primary); }
+
+    /* 프로젝터: 글자크기 · 다음 곡 */
+    .proj-fonts { display: flex; gap: 4px; flex-shrink: 0; }
+    .proj-fonts button {
+      padding: 5px 8px; border: 1px solid var(--border); background: var(--card-bg); color: var(--text);
+      border-radius: 6px; font-size: 12px; font-weight: bold; cursor: pointer;
+    }
+    .proj-text { font-size: calc(clamp(1.9rem, 8.5vw, 4.2rem) * var(--proj-scale, 1)); }
+    .proj-next {
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+      padding: 11px 16px; margin: 0 14px; border-radius: 10px;
+      background: var(--card-bg); border: 1px solid var(--primary); color: var(--primary);
+      font-size: 14.5px; font-weight: bold; cursor: pointer;
+      overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+    }
+
     /* 토스트 */
     #toast {
       position: fixed; bottom: 90px; left: 50%; transform: translateX(-50%);
@@ -283,6 +339,7 @@
   <!-- 상단 검색바 -->
   <header>
     <input type="text" id="searchInput" class="search-input" placeholder="장 번호, 제목, 가사, 초성(ㅅㅈ) 검색">
+    <button class="btn-icon" onclick="openKeypad()" title="번호로 바로 열기">🔢</button>
     <button class="btn-icon" onclick="toggleDarkMode()">🌙</button>
     <button class="btn-icon" onclick="openSettings()">⚙️</button>
   </header>
@@ -324,9 +381,14 @@
     <div class="proj-top">
       <button class="cat-back" onclick="history.back()">✕ 닫기</button>
       <div class="title" id="projTitle"></div>
+      <div class="proj-fonts">
+        <button onclick="changeProjSize(-10)">가-</button>
+        <button onclick="changeProjSize(10)">가+</button>
+      </div>
       <div class="count" id="projCount"></div>
     </div>
     <div class="proj-slide" id="projSlide" onclick="projTap(event)"></div>
+    <div id="projNext" class="proj-next" style="display:none;" onclick="event.stopPropagation(); projNextSong()"></div>
     <div class="proj-dots" id="projDots"></div>
   </div>
 
@@ -356,6 +418,10 @@
       if (i >= 0) { arr.splice(i, 1); if (!arr.length) delete catExtras[key]; saveCatExtras(); return false; }
       arr.push(num); saveCatExtras(); return true;
     }
+    let projScale = parseInt(localStorage.getItem('hymn_proj_size') || '100', 10);   // 프로젝터 전용 글자 크기(%)
+    let favSort = localStorage.getItem('hymn_fav_sort') || 'custom';                 // 'custom' | 'num'
+    let favEdit = false;                                                             // 즐겨찾기 정렬 모드
+    document.documentElement.style.setProperty('--proj-scale', projScale / 100);
     let playlistCtx = null;          // {id, idx} 뷰어를 예배순서에서 열었을 때
     let pendingDelete = false;       // 예배순서 삭제 2단계 확인
 
@@ -462,6 +528,31 @@
              esc(title.slice(idx + q.length));
     }
 
+    // 가사 검색 스니펫: 검색어가 들어간 가사 줄을 잘라서 하이라이트
+    function hlAll(text, q) {
+      if (!q) return esc(text);
+      let out = '', low = text.toLowerCase(), i = 0;
+      while (true) {
+        const j = low.indexOf(q, i);
+        if (j < 0) { out += esc(text.slice(i)); break; }
+        out += esc(text.slice(i, j)) + '<span class="hl">' + esc(text.slice(j, j + q.length)) + '</span>';
+        i = j + q.length;
+      }
+      return out;
+    }
+    function snippetOf(h, q) {
+      if (!q || isChosungQuery(q) || /^\d+$/.test(q)) return '';
+      if (h.title.toLowerCase().includes(q)) return '';
+      const line = h.lyrics.split('\n').find(l => l.toLowerCase().includes(q));
+      if (!line) return '';
+      let t = line.trim().replace(/^\((?:\d+|후렴[^)]*)\)\s*/, '');
+      const pos = t.toLowerCase().indexOf(q);
+      let pre = '';
+      if (pos > 14) { t = t.slice(pos - 12); pre = '…'; }
+      if (t.length > 46) t = t.slice(0, 46) + '…';
+      return '🎵 ' + pre + hlAll(t, q);
+    }
+
     // ================== 공통 목록 렌더링 ==================
     function renderHymnRows(container, arr, q, extrasSet) {
       if (arr.length === 0) {
@@ -473,12 +564,19 @@
         item.className = 'hymn-card';
         const exTag = (!extrasSet || !extrasSet.has(h.num)) ? '' :
           `<span class="my-tag" onclick="event.stopPropagation(); removeCatExtra(${h.num})">내가 추가 ✕</span>`;
+        const snip = snippetOf(h, q || '');
         item.innerHTML = `
+          ${favEdit ? '<div class="drag-handle" data-handle="1">☰</div>' : ''}
           <div class="hymn-num">${h.num}장</div>
-          <div class="hymn-title">${hlTitle(h.title, q || '')}${exTag}</div>
+          <div class="hymn-main">
+            <div class="hymn-title">${hlTitle(h.title, q || '')}${exTag}</div>
+            ${snip ? `<div class="hymn-snip">${snip}</div>` : ''}
+          </div>
           <div class="star-icon ${favorites.includes(h.num) ? 'active' : ''}">★</div>
         `;
-        item.onclick = () => openHymn(h.num);
+        item.dataset.num = h.num;
+        if (favEdit) attachDrag(item);
+        else item.onclick = () => openHymn(h.num);
         container.appendChild(item);
       });
     }
@@ -510,10 +608,88 @@
         list.appendChild(row);
       }
 
-      let arr = hymns.filter(h => (view.tab !== 'fav' || favorites.includes(h.num)) && matchQ(h, q));
+      let arr;
+      if (view.tab === 'fav') {
+        if (favorites.length) renderFavBar(list);
+        const inFav = favorites.map(n => hymns.find(h => h.num === n)).filter(Boolean);
+        arr = (favSort === 'num' ? inFav.slice().sort((a, b) => a.num - b.num) : inFav)
+                .filter(h => matchQ(h, q));
+        if (favEdit) { renderHymnRows(list, arr, ''); return; }
+      } else {
+        arr = hymns.filter(h => matchQ(h, q));
+      }
       // 번호 검색 시 정확히 일치하는 장을 최상단으로
       if (/^\d+$/.test(q)) arr.sort((a, b) => (b.num.toString() === q) - (a.num.toString() === q) || a.num - b.num);
       renderHymnRows(list, arr, q);
+    }
+
+    // ---- 즐겨찾기 정렬 바 ----
+    function renderFavBar(list) {
+      const bar = document.createElement('div');
+      bar.className = 'fav-bar';
+      bar.innerHTML = `
+        <div class="chip ${favSort === 'custom' ? 'active' : ''}" onclick="setFavSort('custom')">내 순서</div>
+        <div class="chip ${favSort === 'num' ? 'active' : ''}" onclick="setFavSort('num')">번호순</div>
+        <div class="spacer"></div>
+        <div class="chip ${favEdit ? 'active' : ''}" onclick="toggleFavEdit()">${favEdit ? '✓ 완료' : '↕ 순서변경'}</div>
+      `;
+      list.appendChild(bar);
+      if (favEdit) {
+        const note = document.createElement('div');
+        note.className = 'm-note';
+        note.style.cssText = 'padding: 8px 16px; margin: 0;';
+        note.innerText = '☰ 를 잡고 끌어서 순서를 바꾸세요';
+        list.appendChild(note);
+      }
+    }
+    function setFavSort(mode) {
+      favSort = mode;
+      localStorage.setItem('hymn_fav_sort', mode);
+      if (mode === 'num') { favEdit = false; }
+      renderHome();
+    }
+    function toggleFavEdit() {
+      if (favSort !== 'custom') { favSort = 'custom'; localStorage.setItem('hymn_fav_sort', 'custom'); }
+      favEdit = !favEdit;
+      renderHome();
+    }
+    const saveFavs = () => localStorage.setItem('hymn_favs', JSON.stringify(favorites));
+
+    // ---- 드래그로 순서 바꾸기 (터치 + 마우스) ----
+    function attachDrag(row) {
+      const handle = row.querySelector('[data-handle]');
+      if (!handle) return;
+      handle.addEventListener('pointerdown', ev => {
+        ev.preventDefault();
+        const parent = row.parentNode;
+        row.classList.add('dragging');
+        handle.setPointerCapture(ev.pointerId);
+        const move = e => {
+          const rows = [...parent.querySelectorAll('.hymn-card')];
+          for (const r of rows) {
+            if (r === row) continue;
+            const b = r.getBoundingClientRect();
+            if (e.clientY > b.top && e.clientY < b.bottom) {
+              const after = e.clientY > b.top + b.height / 2;
+              parent.insertBefore(row, after ? r.nextSibling : r);
+              break;
+            }
+          }
+        };
+        const up = () => {
+          handle.releasePointerCapture(ev.pointerId);
+          handle.removeEventListener('pointermove', move);
+          handle.removeEventListener('pointerup', up);
+          handle.removeEventListener('pointercancel', up);
+          row.classList.remove('dragging');
+          favorites = [...parent.querySelectorAll('.hymn-card')].map(r => parseInt(r.dataset.num, 10));
+          saveFavs();
+          showToast('순서를 저장했습니다');
+        };
+        handle.addEventListener('pointermove', move);
+        handle.addEventListener('pointerup', up);
+        handle.addEventListener('pointercancel', up);
+      });
     }
 
     function renderCatMenu(list) {
@@ -904,10 +1080,12 @@
       return secs.map(s => s.join('\n'));
     }
 
+    let projEnterAtEnd = false;
     function openProjector(h) {
       projSecs = splitSections(h.lyrics);
       if (projSecs.length === 0) projSecs = [h.lyrics];
-      projIdx = 0;
+      projIdx = projEnterAtEnd ? projSecs.length - 1 : 0;
+      projEnterAtEnd = false;
       $('projTitle').innerText = `${h.num}장 ${h.title}`;
       renderProj();
       $('projector').style.display = 'flex';
@@ -924,6 +1102,38 @@
       $('projCount').innerText = `${projIdx + 1} / ${projSecs.length}`;
       $('projDots').innerHTML = projSecs.map((_, i) =>
         `<div class="proj-dot ${i === projIdx ? 'active' : ''}" onclick="projGo(${i})"></div>`).join('');
+
+      // 예배 순서로 보는 중이면 마지막 절에서 '다음 곡' 안내
+      const bar = $('projNext');
+      const nx = nextInCtx(1);
+      if (nx && projIdx === projSecs.length - 1) {
+        bar.style.display = 'flex';
+        bar.innerHTML = `⏭ 다음 곡 · ${nx.h.num}장 ${esc(nx.h.title)}`;
+      } else bar.style.display = 'none';
+    }
+
+    // 예배 순서 기준 앞/뒤 곡 찾기
+    function nextInCtx(dir) {
+      if (!playlistCtx) return null;
+      const p = getList(playlistCtx.kind || 'pl', playlistCtx.id);
+      if (!p) return null;
+      const idx = playlistCtx.idx + dir;
+      if (idx < 0 || idx >= p.nums.length) return null;
+      const h = hymns.find(x => x.num === p.nums[idx]);
+      return h ? { h, idx, p } : null;
+    }
+
+    // 프로젝터에서 순서상 다음(또는 이전) 곡으로 이어가기
+    function projNextSong(dir) {
+      dir = dir || 1;
+      const nx = nextInCtx(dir);
+      if (!nx) { if (dir > 0) showToast('✔ 순서의 마지막 곡입니다'); return false; }
+      playlistCtx = { kind: playlistCtx.kind || 'pl', id: nx.p.id, idx: nx.idx };
+      pushRecent(nx.h.num);
+      projEnterAtEnd = (dir < 0);
+      go({ screen: 'viewer', tab: view.tab, num: nx.h.num, proj: 1 }, true);
+      showToast(`${dir > 0 ? '⏭' : '⏮'} ${nx.h.num}장 ${nx.h.title}`);
+      return true;
     }
     function projTap(e) {
       if (pSwiped) { pSwiped = false; return; }   // 스와이프 직후에 따라오는 클릭은 무시
@@ -932,6 +1142,9 @@
       else projGo(projIdx + 1);
     }
     function projGo(i) {
+      // 마지막 절에서 더 넘기면 예배 순서상 다음 곡으로 자동 연결
+      if (i > projSecs.length - 1) { if (projNextSong(1)) return; }
+      if (i < 0) { if (nextInCtx(-1) && projNextSong(-1)) return; }
       const n = Math.min(Math.max(0, i), projSecs.length - 1);
       const dir = n > projIdx ? 1 : (n < projIdx ? -1 : 0);
       projIdx = n;
@@ -1027,6 +1240,49 @@
       if (_modalCb) { const cb = _modalCb; _modalCb = null; cb(v); }
     }
 
+    // ================== 🔢 번호 키패드 ==================
+    let padVal = '';
+    function openKeypad() {
+      padVal = '';
+      openModal(`
+        <h3>🔢 번호로 바로 열기</h3>
+        <div class="kp-display">
+          <div class="kp-num" id="padNum">—</div>
+          <div class="kp-title" id="padTitle">번호를 누르세요 (1–645)</div>
+        </div>
+        <div class="kp-grid">
+          ${[1,2,3,4,5,6,7,8,9].map(d => `<button onclick="padPush('${d}')">${d}</button>`).join('')}
+          <button onclick="padBack()">⌫</button>
+          <button onclick="padPush('0')">0</button>
+          <button class="kp-go" id="padGo" onclick="padGo()" disabled>이동</button>
+        </div>
+        <div class="m-btns" style="margin-top:12px;"><button class="m-cancel" onclick="closeModal()">닫기</button></div>
+      `);
+    }
+    function padPush(d) {
+      if (padVal.length >= 3) return;
+      const next = (padVal + d).replace(/^0+/, '');
+      if (!next) return;
+      padVal = next;
+      updatePad();
+      // 더 이어붙일 수 없는 번호면 자동으로 열기 (예: 645, 70 → 700은 없음)
+      if (padVal.length === 3 || parseInt(padVal + '0', 10) > 645) setTimeout(padGo, 130);
+    }
+    function padBack() { padVal = padVal.slice(0, -1); updatePad(); }
+    function updatePad() {
+      const h = padVal ? hymns.find(x => x.num === parseInt(padVal, 10)) : null;
+      $('padNum').textContent = padVal || '—';
+      $('padTitle').textContent = !padVal ? '번호를 누르세요 (1–645)' : (h ? h.title : '없는 번호입니다');
+      const go = $('padGo');
+      if (go) go.disabled = !h;
+    }
+    function padGo() {
+      const h = hymns.find(x => x.num === parseInt(padVal || '0', 10));
+      if (!h) { showToast('없는 번호입니다'); return; }
+      closeModal();
+      openHymn(h.num);
+    }
+
     // ================== 설정 (백업/복원/설치) ==================
     let deferredInstall = null;
     window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); deferredInstall = e; });
@@ -1035,13 +1291,32 @@
       const backupData = JSON.stringify({
         app: 'hymnal-backup', ver: 1,
         favs: favorites, lists: playlists, cats: customCats, extras: catExtras, recent: recents,
-        size: fontSize, dark: document.body.classList.contains('dark-mode') ? 1 : 0
+        size: fontSize, projSize: projScale, favSort: favSort,
+        dark: document.body.classList.contains('dark-mode') ? 1 : 0
       }, null, 1);
       openModal(`
         <h3>⚙️ 설정</h3>
         <div class="m-sec-title">📱 앱으로 설치 (오프라인 사용)</div>
         <div class="m-note">• Android/Chrome: 브라우저 메뉴 ⋮ → <b>앱 설치</b> 또는 <b>홈 화면에 추가</b><br>• iPhone/Safari: 공유 버튼 → <b>홈 화면에 추가</b><br>• 설치하면 인터넷 없이도 사용할 수 있습니다</div>
         ${deferredInstall ? `<button class="m-row" onclick="doInstall()">📲 지금 앱 설치하기</button>` : ''}
+        <div class="m-sec">
+          <div class="m-sec-title">🔤 글자 크기</div>
+          <div class="size-row">
+            <span style="font-size:13px;">가</span>
+            <input type="range" id="sizeRange" min="16" max="40" step="1" value="${fontSize}" oninput="setFontSize(this.value)">
+            <span style="font-size:22px;">가</span>
+            <span class="size-val" id="sizeVal">${fontSize}px</span>
+          </div>
+          <div class="size-prev" id="sizePrev" style="font-size:${fontSize}px;">주 사랑 안에 우리 함께</div>
+          <div class="m-sec-title" style="margin-top:14px;">📽️ 프로젝터 글자 크기</div>
+          <div class="size-row">
+            <span style="font-size:13px;">가</span>
+            <input type="range" id="projRange" min="60" max="180" step="5" value="${projScale}" oninput="setProjSize(this.value)">
+            <span style="font-size:22px;">가</span>
+            <span class="size-val" id="projVal">${projScale}%</span>
+          </div>
+          <div class="m-note" style="margin-top:6px;">프로젝터(📽️ 크게) 화면에서만 적용되는 별도 크기입니다.</div>
+        </div>
         <div class="m-sec">
           <div class="m-sec-title">💾 백업 (즐겨찾기 + 예배순서 + 분류)</div>
           <div class="m-btns">
@@ -1083,6 +1358,8 @@
         if (d.extras && typeof d.extras === 'object') { catExtras = d.extras; saveCatExtras(); }
         if (Array.isArray(d.recent)) { recents = d.recent; localStorage.setItem('hymn_recent', JSON.stringify(recents)); }
         if (d.size) { fontSize = d.size; localStorage.setItem('hymn_size', d.size); }
+        if (d.projSize) localStorage.setItem('hymn_proj_size', d.projSize);
+        if (d.favSort) localStorage.setItem('hymn_fav_sort', d.favSort);
         if (typeof d.dark === 'number') localStorage.setItem('hymn_dark', d.dark);
         showToast('✅ 복원 완료');
         setTimeout(() => location.reload(), 600);
@@ -1101,18 +1378,32 @@
       if (!currentHymn) return;
       const idx = favorites.indexOf(currentHymn.num);
       if (idx > -1) favorites.splice(idx, 1); else favorites.push(currentHymn.num);
-      localStorage.setItem('hymn_favs', JSON.stringify(favorites));
+      saveFavs();
       updateViewerStar();
     }
     function updateViewerStar() {
       const star = $('viewerStar');
       star.style.color = favorites.includes(currentHymn.num) ? '#f59e0b' : 'inherit';
     }
-    function changeFontSize(val) {
-      fontSize = Math.min(Math.max(16, fontSize + val), 40);
+    function changeFontSize(val) { setFontSize(fontSize + val); }
+    function setFontSize(val) {
+      fontSize = Math.min(Math.max(16, parseInt(val, 10) || 22), 40);
       $('viewerLyrics').style.fontSize = fontSize + 'px';
       localStorage.setItem('hymn_size', fontSize);
+      const r = $('sizeRange'), v = $('sizeVal'), p = $('sizePrev');
+      if (r) r.value = fontSize;
+      if (v) v.textContent = fontSize + 'px';
+      if (p) p.style.fontSize = fontSize + 'px';
     }
+    function setProjSize(val) {
+      projScale = Math.min(Math.max(60, parseInt(val, 10) || 100), 180);
+      localStorage.setItem('hymn_proj_size', projScale);
+      document.documentElement.style.setProperty('--proj-scale', projScale / 100);
+      const r = $('projRange'), v = $('projVal');
+      if (r) r.value = projScale;
+      if (v) v.textContent = projScale + '%';
+    }
+    function changeProjSize(delta) { setProjSize(projScale + delta); showToast('프로젝터 글자 ' + (projScale) + '%'); }
     function toggleDarkMode() {
       document.body.classList.toggle('dark-mode');
       localStorage.setItem('hymn_dark', document.body.classList.contains('dark-mode') ? '1' : '0');
