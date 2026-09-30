@@ -81,6 +81,9 @@
     }
     @media (max-width: 360px) { .tab { font-size: 15.5px; letter-spacing: -1.2px; } }
     .tab.active { color: var(--primary); border-bottom: 3px solid var(--primary); }
+    /* 다크모드: 선택 안 된 탭은 흰색, 선택된 탭만 파랑 */
+    .dark-mode .tab { color: #ffffff; }
+    .dark-mode .tab.active { color: var(--primary); }
 
     /* 리스트 */
     .list-view {
@@ -227,6 +230,9 @@
     .viewer-lyrics {
       flex: 1; padding: 24px 20px calc(24px + env(safe-area-inset-bottom)); overflow-y: auto; white-space: pre-wrap;
       line-height: 1.5; font-weight: 600; user-select: text; -webkit-user-select: text;
+      /* 확대해도 글자가 화면 밖으로 안 나가고 자동으로 줄바꿈되어 정렬됨 */
+      word-break: keep-all; overflow-wrap: break-word; hyphens: none;
+      touch-action: pan-y; -webkit-text-size-adjust: 100%;
     }
     /* 절과 절 사이를 확실히 구분 (첫 줄 제외) */
     .viewer-lyrics .vs:not(:first-child) { margin-top: 1.2em; }
@@ -257,10 +263,12 @@
     .proj-slide {
       flex: 1; display: flex; align-items: center; justify-content: center;
       padding: 30px 26px; text-align: center; cursor: pointer; overflow-y: auto;
+      touch-action: pan-y;
     }
     .proj-text {
       line-height: 1.55; font-weight: 600;
       white-space: pre-wrap; user-select: none; -webkit-user-select: none;
+      word-break: keep-all; overflow-wrap: break-word;
     }
     .proj-dots {
       display: flex; gap: 7px; justify-content: center;
@@ -270,6 +278,15 @@
       width: 9px; height: 9px; border-radius: 50%; background: var(--border); cursor: pointer;
     }
     .proj-dot.active { background: var(--primary); width: 24px; border-radius: 5px; }
+
+    /* 두 손가락 확대 중 표시되는 배지 */
+    #zoomBadge {
+      position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%);
+      background: rgba(17,17,17,.82); color: #fff; font-size: 19px; font-weight: 800;
+      padding: 12px 20px; border-radius: 14px; z-index: 900; pointer-events: none;
+      opacity: 0; transition: opacity .15s;
+    }
+    #zoomBadge.on { opacity: 1; }
 
     /* 모달 */
     #modalWrap {
@@ -465,7 +482,7 @@
 
   <script>
     // ================== 앱 버전 ==================
-    const APP_VERSION = 'v7.1';
+    const APP_VERSION = 'v7.2';
     const APP_BUILD   = '2026-09-30';
     const APP_NAME    = 'SK새찬송가';
 
@@ -1368,6 +1385,7 @@
       return true;
     }
     function projTap(e) {
+      if (pinching) return;                      // 확대 중 손가락 뗄 때 나오는 클릭 무시
       if (pSwiped) { pSwiped = false; return; }   // 스와이프 직후에 따라오는 클릭은 무시
       const x = e.clientX || 0;
       if (x < window.innerWidth * 0.3) projGo(projIdx - 1);
@@ -1387,9 +1405,11 @@
     // ================== 스와이프: 프로젝터 모드에서 절 넘기기 ==================
     let pTsX = 0, pTsY = 0, pTsT = 0, pSwiped = false;
     $('projSlide').addEventListener('touchstart', e => {
+      if (e.touches.length > 1) { pTsT = 0; pSwiped = true; return; }   // 두 손가락(확대) 중이면 넘김 무시
       pTsX = e.touches[0].clientX; pTsY = e.touches[0].clientY; pTsT = Date.now(); pSwiped = false;
     }, { passive: true });
     $('projSlide').addEventListener('touchend', e => {
+      if (!pTsT || pinching) return;
       const dx = e.changedTouches[0].clientX - pTsX;
       const dy = e.changedTouches[0].clientY - pTsY;
       if (Date.now() - pTsT > 600) return;
@@ -1626,15 +1646,16 @@
           <div class="m-sec-title">🔤 글자 크기</div>
           <div class="size-row">
             <span style="font-size:13px;">가</span>
-            <input type="range" id="sizeRange" min="16" max="40" step="1" value="${fontSize}" oninput="setFontSize(this.value)">
+            <input type="range" id="sizeRange" min="16" max="48" step="1" value="${fontSize}" oninput="setFontSize(this.value)">
             <span style="font-size:22px;">가</span>
             <span class="size-val" id="sizeVal">${fontSize}px</span>
           </div>
+          <div class="size-hint" style="font-size:12.5px;color:var(--sub-text);margin:2px 0 8px;">가사 화면에서 두 손가락으로 벌리면 바로 커집니다</div>
           <div class="size-prev" id="sizePrev" style="font-size:${fontSize}px;">주 사랑 안에 우리 함께</div>
           <div class="m-sec-title" style="margin-top:14px;">📽️ 프로젝터 글자 크기</div>
           <div class="size-row">
             <span style="font-size:13px;">가</span>
-            <input type="range" id="projRange" min="60" max="180" step="5" value="${projScale}" oninput="setProjSize(this.value)">
+            <input type="range" id="projRange" min="60" max="220" step="5" value="${projScale}" oninput="setProjSize(this.value)">
             <span style="font-size:22px;">가</span>
             <span class="size-val" id="projVal">${projScale}%</span>
           </div>
@@ -1746,7 +1767,7 @@
     }
     function changeFontSize(val) { setFontSize(fontSize + val); }
     function setFontSize(val) {
-      fontSize = Math.min(Math.max(16, parseInt(val, 10) || 22), 40);
+      fontSize = Math.min(Math.max(16, parseInt(val, 10) || 22), 48);
       $('viewerLyrics').style.fontSize = fontSize + 'px';
       localStorage.setItem('hymn_size', fontSize);
       const r = $('sizeRange'), v = $('sizeVal'), p = $('sizePrev');
@@ -1755,7 +1776,7 @@
       if (p) p.style.fontSize = fontSize + 'px';
     }
     function setProjSize(val) {
-      projScale = Math.min(Math.max(60, parseInt(val, 10) || 100), 180);
+      projScale = Math.min(Math.max(60, parseInt(val, 10) || 100), 220);
       localStorage.setItem('hymn_proj_size', projScale);
       document.documentElement.style.setProperty('--proj-scale', projScale / 100);
       const r = $('projRange'), v = $('projVal');
@@ -1822,9 +1843,11 @@
     // ================== 스와이프: 가사 화면에서 이전/다음 장 ==================
     let vTsX = 0, vTsY = 0, vTsT = 0;
     $('viewerLyrics').addEventListener('touchstart', e => {
+      if (e.touches.length > 1) { vTsT = 0; return; }        // 두 손가락(확대) 중이면 스와이프 무시
       vTsX = e.touches[0].clientX; vTsY = e.touches[0].clientY; vTsT = Date.now();
     }, { passive: true });
     $('viewerLyrics').addEventListener('touchend', e => {
+      if (!vTsT || pinching) return;
       const dx = e.changedTouches[0].clientX - vTsX;
       const dy = e.changedTouches[0].clientY - vTsY;
       if (Date.now() - vTsT > 600) return;
@@ -1848,6 +1871,63 @@
       go({ screen: 'viewer', tab: view.tab, num: keyOf(nx) }, true);
     }
 
+
+    // ================== 두 손가락으로 글자 키우기/줄이기 (핀치 줌) ==================
+    // 브라우저 기본 확대(화면 전체가 커져 가로로 잘리는 방식) 대신,
+    // 글자 크기 자체를 바꿔서 가사가 항상 화면 폭 안에서 자동으로 줄바꿈되게 한다.
+    let pinching = false;
+    let zoomBadgeTimer = null;
+    function showZoomBadge(text) {
+      const b = $('zoomBadge');
+      if (!b) return;
+      b.textContent = text; b.classList.add('on');
+      clearTimeout(zoomBadgeTimer);
+    }
+    function hideZoomBadge() {
+      const b = $('zoomBadge');
+      if (!b) return;
+      clearTimeout(zoomBadgeTimer);
+      zoomBadgeTimer = setTimeout(() => b.classList.remove('on'), 500);
+    }
+    function attachPinchZoom(el, getVal, setVal, label) {
+      if (!el) return;
+      let base = 0, startDist = 0, active = false;
+      const dist = t => Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY);
+      el.addEventListener('touchstart', e => {
+        if (e.touches.length !== 2) return;
+        active = true; pinching = true;
+        startDist = dist(e.touches) || 1;
+        base = getVal();
+        showZoomBadge(label(base));
+      }, { passive: true });
+      el.addEventListener('touchmove', e => {
+        if (!active || e.touches.length !== 2) return;
+        e.preventDefault();                       // 브라우저 기본 확대 차단
+        const ratio = dist(e.touches) / startDist;
+        setVal(Math.round(base * ratio));
+        showZoomBadge(label(getVal()));
+      }, { passive: false });
+      const end = () => {
+        if (!active) return;
+        active = false; hideZoomBadge();
+        setTimeout(() => { pinching = false; }, 300);
+      };
+      el.addEventListener('touchend', end, { passive: true });
+      el.addEventListener('touchcancel', end, { passive: true });
+      // 아이폰 사파리 전용 제스처 이벤트
+      el.addEventListener('gesturestart', e => {
+        e.preventDefault(); pinching = true; base = getVal(); showZoomBadge(label(base));
+      }, { passive: false });
+      el.addEventListener('gesturechange', e => {
+        e.preventDefault(); setVal(Math.round(base * e.scale)); showZoomBadge(label(getVal()));
+      }, { passive: false });
+      el.addEventListener('gestureend', e => {
+        e.preventDefault(); hideZoomBadge(); setTimeout(() => { pinching = false; }, 300);
+      }, { passive: false });
+    }
+    attachPinchZoom($('viewerLyrics'), () => fontSize, v => setFontSize(v), v => '글자 ' + v + 'px');
+    attachPinchZoom($('projSlide'),    () => projScale, v => setProjSize(v), v => '프로젝터 ' + v + '%');
+
     // 요소에 좌/우 슬라이드 애니메이션 적용
     function animEl(el, dir) {
       el.classList.remove('anim-next', 'anim-prev');
@@ -1860,5 +1940,6 @@
       navigator.serviceWorker.register('sw.js').catch(() => {});
     }
   </script>
+  <div id="zoomBadge"></div>
 </body>
 </html>
