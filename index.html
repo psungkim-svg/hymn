@@ -76,8 +76,8 @@
     /* 탭 메뉴 */
     .tabs { display: flex; border-bottom: 1px solid var(--border); background: var(--bg); }
     .tab {
-      flex: 1; text-align: center; padding: 12px 0; font-size: 16px; font-weight: 800;
-      font-weight: bold; color: var(--sub-text); cursor: pointer;
+      flex: 1; text-align: center; padding: 12px 2px; font-size: 13.5px; font-weight: 800;
+      color: var(--sub-text); cursor: pointer; white-space: nowrap; letter-spacing: -0.4px;
     }
     .tab.active { color: var(--primary); border-bottom: 3px solid var(--primary); }
 
@@ -359,6 +359,22 @@
       overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
     }
 
+    /* CCM */
+    .ccm-badge {
+      display: inline-block; font-size: 11px; font-weight: 800; color: #fff;
+      background: #7c3aed; border-radius: 6px; padding: 2px 6px; letter-spacing: .3px;
+    }
+    .ccm-badge.mine { background: #059669; }
+    .song-sub { font-size: 12.5px; color: var(--sub-text); margin-top: 2px; }
+    .empty-box {
+      padding: 26px 22px; color: var(--sub-text); font-size: 14px; line-height: 1.85; text-align: center;
+    }
+    .empty-box b { color: var(--text); }
+    .empty-box code {
+      display: inline-block; background: var(--card-bg); border: 1px solid var(--border);
+      border-radius: 6px; padding: 2px 7px; font-size: 12.5px; color: var(--primary);
+    }
+
     /* 버전 표시 */
     .ver-box {
       margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--border);
@@ -390,10 +406,11 @@
 
   <!-- 탭 메뉴 -->
   <div class="tabs">
-    <div class="tab active" id="tabAll" onclick="changeTab('all')">전체</div>
-    <div class="tab" id="tabCat" onclick="changeTab('cat')">📂 분류별</div>
-    <div class="tab" id="tabList" onclick="changeTab('list')">📋 예배순서</div>
-    <div class="tab" id="tabFav" onclick="changeTab('fav')">⭐ 즐겨찾기</div>
+    <div class="tab active" id="tabAll" onclick="changeTab('all')">찬송가</div>
+    <div class="tab" id="tabCcm" onclick="changeTab('ccm')">CCM</div>
+    <div class="tab" id="tabFav" onclick="changeTab('fav')">⭐즐겨찾기</div>
+    <div class="tab" id="tabCat" onclick="changeTab('cat')">📂분류별</div>
+    <div class="tab" id="tabList" onclick="changeTab('list')">📋예배순서</div>
   </div>
 
   <!-- 목록 -->
@@ -412,6 +429,7 @@
     </div>
     <div class="viewer-tools">
       <button onclick="addToPlaylistModal()">＋ 순서</button>
+      <button id="btnEditCcm" style="display:none;" onclick="openCcmEditor(keyOf(currentHymn))">✏️ 수정</button>
       <button onclick="enterProjector()">📽️ 크게</button>
       <button onclick="copyLyrics()">📋 복사</button>
       <button onclick="shareLyrics()">🔗 공유</button>
@@ -446,11 +464,17 @@
 
   <script>
     // ================== 앱 버전 ==================
-    const APP_VERSION = 'v6.0';
+    const APP_VERSION = 'v7.0';
     const APP_BUILD   = '2026-09-29';
     const APP_NAME    = 'SK새찬송가';
 
-    let hymns = [];
+    let hymns = [];            // 찬송가 645장
+    let ccms = [];             // ccm.json (파일로 올린 CCM)
+    let myCcms = JSON.parse(localStorage.getItem('hymn_myccm') || '[]');  // 앱에서 직접 추가한 CCM
+    let ccmAll = [];           // 위 둘을 합쳐 가나다순 정렬한 목록
+    let songIndex = new Map(); // 키 → 곡
+    let ccmTag = '';           // CCM 태그 필터
+    let maxHymnNum = 645;
     let currentHymn = null;
     let fontSize = parseInt(localStorage.getItem('hymn_size') || '22', 10);
     let favorites = JSON.parse(localStorage.getItem('hymn_favs') || '[]');
@@ -499,6 +523,31 @@
 
     const $ = id => document.getElementById(id);
 
+    // ================== 곡 공통 처리 (찬송가 + CCM) ==================
+    // 찬송가는 번호(숫자), CCM은 문자열 id를 "키"로 쓴다
+    const keyOf = s => (s.book === 'hymn' ? s.num : s.id);
+    const saveMyCcms = () => localStorage.setItem('hymn_myccm', JSON.stringify(myCcms));
+
+    function findSong(k) {
+      if (k === null || k === undefined) return null;
+      return songIndex.get(k) || songIndex.get(Number(k)) || songIndex.get(String(k)) || null;
+    }
+    function rebuildIndex() {
+      songIndex = new Map();
+      hymns.forEach(h => { h.book = 'hymn'; songIndex.set(h.num, h); });
+      ccmAll = ccms.concat(myCcms).sort((a, b) => a.title.localeCompare(b.title, 'ko'));
+      ccmAll.forEach((c, i) => { c.book = 'ccm'; c.no = i + 1; songIndex.set(c.id, c); });
+      if (hymns.length) maxHymnNum = Math.max(...hymns.map(h => h.num));
+      buildSearchIndex();
+    }
+    const songLabel = s => (s.book === 'hymn' ? s.num + '장' : '<span class="ccm-badge' + (s.mine ? ' mine' : '') + '">CCM</span>');
+    const songTitleFull = s => (s.book === 'hymn' ? s.num + '장 ' + s.title : s.title);
+    function allCcmTags() {
+      const t = new Set();
+      ccmAll.forEach(c => (c.tags || []).forEach(x => t.add(x)));
+      return [...t].sort((a, b) => a.localeCompare(b, 'ko'));
+    }
+
     // ================== 화면 이동 (스마트폰 뒤로가기 연동) ==================
     history.replaceState(view, '');
     window.addEventListener('popstate', e => {
@@ -516,7 +565,7 @@
     function applyView() {
       closeModal();
       if (view.screen === 'viewer') {
-        const h = hymns.find(x => x.num === view.num);
+        const h = findSong(view.num);
         if (h) {
           showViewer(h);
           if (view.proj) openProjector(h); else closeProjector();
@@ -527,23 +576,36 @@
       closeProjector();
       $('viewer').style.display = 'none';
 
-      const activeTab = (view.screen === 'category' || view.screen === 'playlist') ? view.tab : view.tab;
-      $('tabAll').className = 'tab ' + (activeTab === 'all' ? 'active' : '');
-      $('tabCat').className = 'tab ' + (activeTab === 'cat' ? 'active' : '');
+      const activeTab = view.tab;
+      $('tabAll').className  = 'tab ' + (activeTab === 'all'  ? 'active' : '');
+      $('tabCcm').className  = 'tab ' + (activeTab === 'ccm'  ? 'active' : '');
+      $('tabFav').className  = 'tab ' + (activeTab === 'fav'  ? 'active' : '');
+      $('tabCat').className  = 'tab ' + (activeTab === 'cat'  ? 'active' : '');
       $('tabList').className = 'tab ' + (activeTab === 'list' ? 'active' : '');
-      $('tabFav').className = 'tab ' + (activeTab === 'fav' ? 'active' : '');
 
-      if (view.screen === 'category') renderCategory();
+      if (view.screen === 'ccmtag') renderCcmTagView();
+      else if (view.screen === 'category') renderCategory();
       else if (view.screen === 'playlist' || view.screen === 'customcat') renderPlaylistDetail(view.id);
       else renderHome();
     }
     // =========================================================================
 
-    // 데이터 로드
-    fetch('hymns.json')
-      .then(res => res.json())
-      .then(data => { hymns = data; buildSearchIndex(); applyView(); })
-      .catch(() => alert('hymns.json 파일을 불러오지 못했습니다. 같은 폴더에 있는지 확인해주세요.'));
+    // 데이터 로드 (ccm.json 은 없어도 정상 동작)
+    Promise.all([
+      fetch('hymns.json').then(r => r.json()),
+      fetch('ccm.json').then(r => (r.ok ? r.json() : [])).catch(() => [])
+    ]).then(([h, c]) => {
+      hymns = h;
+      ccms = (Array.isArray(c) ? c : []).map((x, i) => ({
+        id: x.id || ('ccm-' + String(i + 1).padStart(3, '0')),
+        title: x.title || '(제목 없음)',
+        lyrics: x.lyrics || '',
+        tags: Array.isArray(x.tags) ? x.tags : [],
+        artist: x.artist || '', key: x.key || '', youtube: x.youtube || ''
+      }));
+      rebuildIndex();
+      applyView();
+    }).catch(() => alert('hymns.json 파일을 불러오지 못했습니다. 같은 폴더에 있는지 확인해주세요.'));
 
     // ================== 검색 (번호/제목/가사/초성) ==================
     const CHO = 'ㄱㄲㄴㄷㄸㄹㅁㅂㅃㅅㅆㅇㅈㅉㅊㅋㅌㅍㅎ';
@@ -559,11 +621,11 @@
 
     // 초성 검색용 색인을 로드 직후 한 번만 만들어 둔다 (검색할 때마다 변환하면 느림)
     function buildSearchIndex() {
-      for (const h of hymns) {
+      for (const h of hymns.concat(ccmAll)) {
         h._t = h.title.toLowerCase();
-        h._l = h.lyrics.toLowerCase();
+        h._l = (h.lyrics || '').toLowerCase();
         h._ct = toChosung(h.title).replace(/\s/g, '');
-        h._cl = toChosung(h.lyrics).replace(/\s/g, '');
+        h._cl = toChosung(h.lyrics || '').replace(/\s/g, '');
       }
     }
 
@@ -571,11 +633,11 @@
       if (!q) return true;
       if (isChosungQuery(q)) {
         const c = q.replace(/\s/g, '');
-        return (h._ct || '').includes(c) || (h._cl || '').includes(c);   // 제목 + 가사 초성
+        return (h._ct || '').includes(c) || (h._cl || '').includes(c);
       }
-      return h.num.toString() === q ||
+      return (h.num != null && h.num.toString() === q) ||
              (h._t || h.title.toLowerCase()).includes(q) ||
-             (h._l || h.lyrics.toLowerCase()).includes(q);
+             (h._l || (h.lyrics || '').toLowerCase()).includes(q);
     }
 
     function esc(s) {
@@ -622,24 +684,27 @@
         return;
       }
       arr.forEach(h => {
+        const k = keyOf(h);
         const item = document.createElement('div');
         item.className = 'hymn-card';
-        const exTag = (!extrasSet || !extrasSet.has(h.num)) ? '' :
+        const exTag = (!extrasSet || h.book !== 'hymn' || !extrasSet.has(h.num)) ? '' :
           `<span class="my-tag" onclick="event.stopPropagation(); removeCatExtra(${h.num})">내가 추가 ✕</span>`;
         const snip = snippetOf(h, q || '');
+        const sub = (h.book === 'ccm' && !snip && (h.tags || []).length)
+          ? `<div class="song-sub">${esc(h.tags.join(' · '))}</div>` : '';
         item.innerHTML = `
           ${favEdit ? '<div class="drag-handle" data-handle="1">☰</div>' : ''}
-          <div class="hymn-num">${h.num}장</div>
+          <div class="hymn-num">${songLabel(h)}</div>
           <div class="hymn-main">
             <div class="hymn-title">${hlTitle(h.title, q || '')}${exTag}</div>
-            ${snip ? `<div class="hymn-snip">${snip}</div>` : ''}
+            ${snip ? `<div class="hymn-snip">${snip}</div>` : sub}
           </div>
-          <div class="star-icon ${favorites.includes(h.num) ? 'active' : ''}"
-               onclick="event.stopPropagation(); toggleFavNum(${h.num}, this)" title="즐겨찾기">★</div>
+          <div class="star-icon ${favorites.some(f => String(f) === String(k)) ? 'active' : ''}"
+               onclick="event.stopPropagation(); toggleFavKey(${JSON.stringify(k)}, this)" title="즐겨찾기">★</div>
         `;
-        item.dataset.num = h.num;
+        item.dataset.num = k;
         if (favEdit) attachDrag(item);
-        else item.onclick = () => openHymn(h.num);
+        else item.onclick = () => openHymn(k);
         container.appendChild(item);
       });
     }
@@ -651,21 +716,23 @@
       list.innerHTML = '';
       $('searchInput').placeholder = isChosungQuery(q) ? '초성 검색(제목·가사): ' + q : '장 번호, 제목, 가사, 초성(ㅅㅈ) 검색';
 
-      if (view.tab === 'cat') { renderCatMenu(list); return; }
+      if (view.tab === 'cat')  { renderCatMenu(list); return; }
       if (view.tab === 'list') { renderPlaylistTab(list); return; }
+      if (view.tab === 'ccm')  { renderCcmTab(list, q); return; }
 
-      // 최근 본 곡 (전체 탭, 검색 없을 때)
+      // 최근 본 곡 (찬송가 탭, 검색 없을 때)
       if (view.tab === 'all' && !q && recents.length > 0) {
         const row = document.createElement('div');
         row.className = 'recent-row';
         row.innerHTML = '<div class="recent-label">🕘 최근</div>';
-        recents.forEach(num => {
-          const h = hymns.find(x => x.num === num);
+        recents.forEach(k => {
+          const h = findSong(k);
           if (!h) return;
           const chip = document.createElement('div');
           chip.className = 'recent-chip';
-          chip.innerHTML = `<b>${h.num}</b>${esc(h.title.length > 10 ? h.title.slice(0, 10) + '…' : h.title)}`;
-          chip.onclick = () => openHymn(num);
+          const head = h.book === 'hymn' ? h.num : '♪';
+          chip.innerHTML = `<b>${head}</b>${esc(h.title.length > 10 ? h.title.slice(0, 10) + '…' : h.title)}`;
+          chip.onclick = () => openHymn(k);
           row.appendChild(chip);
         });
         list.appendChild(row);
@@ -674,15 +741,76 @@
       let arr;
       if (view.tab === 'fav') {
         if (favorites.length) renderFavBar(list);
-        const inFav = favorites.map(n => hymns.find(h => h.num === n)).filter(Boolean);
-        arr = (favSort === 'num' ? inFav.slice().sort((a, b) => a.num - b.num) : inFav)
-                .filter(h => matchQ(h, q));
+        const inFav = favorites.map(k => findSong(k)).filter(Boolean);
+        arr = (favSort === 'num'
+                ? inFav.slice().sort((a, b) => (a.book === b.book)
+                    ? (a.book === 'hymn' ? a.num - b.num : a.title.localeCompare(b.title, 'ko'))
+                    : (a.book === 'hymn' ? -1 : 1))
+                : inFav).filter(h => matchQ(h, q));
         if (favEdit) { renderHymnRows(list, arr, ''); return; }
+        if (!favorites.length) {
+          list.innerHTML += '<div class="empty-box">⭐ 즐겨찾기가 비어 있습니다.<br>목록에서 곡 오른쪽 <b>★</b>을 누르면 담깁니다.</div>';
+          return;
+        }
       } else {
-        arr = hymns.filter(h => matchQ(h, q));
+        arr = hymns.filter(h => matchQ(h, q));   // 찬송가 탭
       }
-      // 번호 검색 시 정확히 일치하는 장을 최상단으로
-      if (/^\d+$/.test(q)) arr.sort((a, b) => (b.num.toString() === q) - (a.num.toString() === q) || a.num - b.num);
+
+      if (/^\d+$/.test(q)) arr.sort((a, b) => (String(b.num) === q) - (String(a.num) === q) || (a.num || 0) - (b.num || 0));
+      renderHymnRows(list, arr, q);
+    }
+
+    // ================== 🎶 CCM 탭 ==================
+    function renderCcmTab(list, q) {
+      const actions = document.createElement('div');
+      actions.className = 'pl-actions';
+      actions.innerHTML = `<button class="primary" onclick="openCcmEditor()">＋ CCM 곡 추가</button>`;
+      list.appendChild(actions);
+
+      if (ccmAll.length === 0) {
+        list.innerHTML += `<div class="empty-box">
+          🎶 <b>아직 CCM이 없습니다</b><br><br>
+          <b>방법 1</b> — 위 <b>＋ CCM 곡 추가</b>로 직접 입력<br>
+          <span style="font-size:13px;">내 폰에 저장됩니다. 설정에서 내보내 다른 기기로 옮길 수 있어요.</span><br><br>
+          <b>방법 2</b> — 가사를 모아 <code>ccm.json</code>으로 만들어 올리기<br>
+          <span style="font-size:13px;">모든 교인에게 한 번에 배포됩니다.</span>
+        </div>`;
+        return;
+      }
+
+      // 태그 필터
+      const tags = allCcmTags();
+      if (tags.length) {
+        const row = document.createElement('div');
+        row.className = 'chip-row';
+        const mk = (label, val) => {
+          const c = document.createElement('div');
+          c.className = 'chip' + (ccmTag === val ? ' active' : '');
+          c.textContent = label;
+          c.onclick = () => { ccmTag = val; renderHome(); };
+          return c;
+        };
+        row.appendChild(mk('전체 ' + ccmAll.length, ''));
+        tags.forEach(t => row.appendChild(mk(t, t)));
+        list.appendChild(row);
+      }
+
+      const arr = ccmAll.filter(c => (!ccmTag || (c.tags || []).includes(ccmTag)) && matchQ(c, q));
+      renderHymnRows(list, arr, q);
+    }
+
+    // 분류별 탭에서 들어오는 CCM 태그 화면
+    function renderCcmTagView() {
+      const list = $('hymnList');
+      const q = $('searchInput').value.trim().toLowerCase();
+      list.innerHTML = '';
+      const bar = document.createElement('div');
+      bar.className = 'cat-header';
+      bar.innerHTML = `
+        <button class="cat-back" onclick="history.back()">‹ 분류 목록</button>
+        <div class="cat-cur"><b>🎶 ${esc(view.tag)}</b><span>CCM</span></div>`;
+      list.appendChild(bar);
+      const arr = ccmAll.filter(c => (c.tags || []).includes(view.tag) && matchQ(c, q));
       renderHymnRows(list, arr, q);
     }
 
@@ -719,15 +847,15 @@
     const saveFavs = () => localStorage.setItem('hymn_favs', JSON.stringify(favorites));
 
     // 목록에서 ★ 눌러 바로 즐겨찾기 넣고 빼기
-    function toggleFavNum(num, el) {
-      const i = favorites.indexOf(num);
+    function toggleFavKey(k, el) {
+      const i = favorites.findIndex(f => String(f) === String(k));
       const on = i < 0;
-      if (on) favorites.push(num); else favorites.splice(i, 1);
+      if (on) favorites.push(k); else favorites.splice(i, 1);
       saveFavs();
       if (el) el.classList.toggle('active', on);
-      if (currentHymn && currentHymn.num === num) updateViewerStar();
-      showToast(on ? `⭐ ${num}장 즐겨찾기 추가` : `${num}장 즐겨찾기 해제`);
-      // 즐겨찾기 탭에서 해제하면 목록에서 바로 빠지도록
+      if (currentHymn && String(keyOf(currentHymn)) === String(k)) updateViewerStar();
+      const s = findSong(k);
+      showToast(on ? `⭐ ${s ? s.title : k} 즐겨찾기 추가` : `${s ? s.title : k} 즐겨찾기 해제`);
       if (view.screen === 'home' && view.tab === 'fav' && !on) setTimeout(renderHome, 200);
     }
 
@@ -758,7 +886,10 @@
           handle.removeEventListener('pointerup', up);
           handle.removeEventListener('pointercancel', up);
           row.classList.remove('dragging');
-          favorites = [...parent.querySelectorAll('.hymn-card')].map(r => parseInt(r.dataset.num, 10));
+          favorites = [...parent.querySelectorAll('.hymn-card')].map(r => {
+            const v = r.dataset.num;
+            return /^\d+$/.test(v) ? parseInt(v, 10) : v;
+          });
           saveFavs();
           showToast('순서를 저장했습니다');
         };
@@ -784,6 +915,26 @@
         div.onclick = () => go({ screen: 'category', tab: 'cat', cat: i, sub: -1 });
         list.appendChild(div);
       });
+
+      // 🎶 CCM 태그별
+      if (ccmAll.length) {
+        const ch = document.createElement('div');
+        ch.className = 'cat-header';
+        ch.innerHTML = `<div class="cat-cur"><b>🎶 CCM</b><span>태그별로 보기 · ${ccmAll.length}곡</span></div>`;
+        list.appendChild(ch);
+        allCcmTags().forEach(t => {
+          const n = ccmAll.filter(c => (c.tags || []).includes(t)).length;
+          const div = document.createElement('div');
+          div.className = 'cat-card';
+          div.innerHTML = `
+            <div class="cat-icon">🎶</div>
+            <div class="cat-name">${esc(t)}</div>
+            <div class="cat-range">${n}곡</div>
+            <div class="cat-arrow">›</div>`;
+          div.onclick = () => go({ screen: 'ccmtag', tab: 'cat', tag: t });
+          list.appendChild(div);
+        });
+      }
 
       // ✏️ 내 분류 (사용자가 직접 만드는 분류 — 기존 분류와 겹쳐도 자유롭게)
       const head = document.createElement('div');
@@ -971,12 +1122,12 @@
         return;
       }
       p.nums.forEach((num, idx) => {
-        const h = hymns.find(x => x.num === num);
+        const h = findSong(num);
         const row = document.createElement('div');
         row.className = 'pl-song';
         row.innerHTML = `
           <div class="pl-order">${idx + 1}</div>
-          <div class="pl-title">${h ? h.num + '장 ' + esc(h.title) : num + '장'}<small>${h ? '' : '（데이터 없음）'}</small></div>
+          <div class="pl-title">${h ? esc(songTitleFull(h)) : esc(String(num))}<small>${h ? (h.book === 'ccm' ? 'CCM' : '') : '（데이터 없음）'}</small></div>
           <button class="pl-ctrl" onclick="event.stopPropagation(); plMove('${kind}','${id}',${idx},-1)">▲</button>
           <button class="pl-ctrl" onclick="event.stopPropagation(); plMove('${kind}','${id}',${idx},1)">▼</button>
           <button class="pl-ctrl" onclick="event.stopPropagation(); plRemove('${kind}','${id}',${idx})">✕</button>
@@ -1034,7 +1185,8 @@
 
     function addToPlaylistModal() {
       if (!currentHymn) return;
-      let html = `<h3>＋ ${currentHymn.num}장을 어디에 추가할까요?</h3>`;
+      const isH = currentHymn.book === 'hymn';
+      let html = `<h3>＋ ${esc(songTitleFull(currentHymn))}<br><span style="font-size:13px;color:var(--sub-text);font-weight:400;">어디에 추가할까요?</span></h3>`;
       html += `<div class="m-sec-title">📋 예배 순서</div>`;
       html += `<button class="m-row" onclick="promptNew('pl', addThenClose)">➕ <b>새 예배 순서 만들기</b></button>`;
       playlists.forEach(p => {
@@ -1046,32 +1198,34 @@
         html += `<button class="m-row" onclick="addToList('cat','${p.id}')">✏️ ${esc(p.name)} <small>· ${p.nums.length}곡</small></button>`;
       });
       html += `</div>`;
-      html += `<div class="m-sec"><div class="m-sec-title">📂 공식 분류에 추가 (겹쳐도 OK)</div>`;
-      CATEGORIES.forEach((c, ci) => {
-        const targets = c.subs.length
-          ? c.subs.map((sb, si) => [ci, si, sb[0], sb[1], sb[2]])
-          : [[ci, -1, c.name, c.from, c.to]];
-        targets.forEach(([tci, tsi, nm, f, t]) => {
-          const added = (catExtras[catKeyOf(tci, tsi)] || []).includes(currentHymn.num);
-          html += `<button class="m-row" onclick="addExtraFromViewer(${tci},${tsi})">${added ? '✅' : '📂'} ${esc(nm)} <small>· ${f}–${t}장${added ? ' · 추가됨' : ''}</small></button>`;
+      if (isH) {
+        html += `<div class="m-sec"><div class="m-sec-title">📂 공식 분류에 추가 (겹쳐도 OK)</div>`;
+        CATEGORIES.forEach((c, ci) => {
+          const targets = c.subs.length
+            ? c.subs.map((sb, si) => [ci, si, sb[0], sb[1], sb[2]])
+            : [[ci, -1, c.name, c.from, c.to]];
+          targets.forEach(([tci, tsi, nm, f, t]) => {
+            const added = (catExtras[catKeyOf(tci, tsi)] || []).includes(currentHymn.num);
+            html += `<button class="m-row" onclick="addExtraFromViewer(${tci},${tsi})">${added ? '✅' : '📂'} ${esc(nm)} <small>· ${f}–${t}장${added ? ' · 추가됨' : ''}</small></button>`;
+          });
         });
-      });
-      html += `</div>`;
+        html += `</div>`;
+      }
       openModal(html);
     }
     function addToList(kind, id) {
       if (!currentHymn) return;
       const p = getList(kind, id); if (!p) return;
-      p.nums.push(currentHymn.num);
+      p.nums.push(keyOf(currentHymn));
       saveStore(kind); closeModal();
-      showToast(`'${p.name}'에 ${currentHymn.num}장 추가됨`);
+      showToast(`'${p.name}'에 ${songTitleFull(currentHymn)} 추가됨`);
     }
     function addThenClose(kind, id) {
       if (!currentHymn) return;
       const p = getList(kind, id); if (!p) return;
-      p.nums.push(currentHymn.num);
+      p.nums.push(keyOf(currentHymn));
       saveStore(kind); closeModal();
-      showToast(`'${p.name}' 생성 · ${currentHymn.num}장 추가됨`);
+      showToast(`'${p.name}' 생성 · ${songTitleFull(currentHymn)} 추가됨`);
     }
 
     function openNextInList() {
@@ -1092,10 +1246,11 @@
 
     function showViewer(h) {
       currentHymn = h;
-      $('viewerTitle').innerText = `${h.num}장 ${h.title}`;
+      $('viewerTitle').innerText = songTitleFull(h);
       const lyricsBox = $('viewerLyrics');
-      lyricsBox.innerHTML = renderLyrics(h.lyrics);
+      lyricsBox.innerHTML = renderLyrics(h.lyrics || '');
       lyricsBox.style.fontSize = fontSize + 'px';
+      $('btnEditCcm').style.display = h.mine ? '' : 'none';
       updateViewerStar();
       updateNextBar();
       $('viewer').style.display = 'flex';
@@ -1109,12 +1264,12 @@
       const idx = playlistCtx.idx;
       if (idx + 1 >= p.nums.length) {
         bar.style.display = 'flex';
-        bar.innerHTML = `<span>✔ 순서 마지막 곡입니다 (${p.name} · ${p.nums.length}곡)</span>`;
+        bar.innerHTML = `<span>✔ 순서 마지막 곡입니다 (${esc(p.name)} · ${p.nums.length}곡)</span>`;
         return;
       }
-      const next = hymns.find(x => x.num === p.nums[idx + 1]);
+      const next = findSong(p.nums[idx + 1]);
       bar.style.display = 'flex';
-      bar.innerHTML = `<b>⏭ 다음</b><span>${idx + 2}/${p.nums.length} · ${next ? next.num + '장 ' + esc(next.title) : ''}</span><b>›</b>`;
+      bar.innerHTML = `<b>⏭ 다음</b><span>${idx + 2}/${p.nums.length} · ${next ? esc(songTitleFull(next)) : ''}</span><b>›</b>`;
     }
 
     function pushRecent(num) {
@@ -1141,7 +1296,7 @@
 
     function enterProjector() {
       if (!currentHymn) return;
-      go({ screen: 'viewer', tab: view.tab, num: currentHymn.num, proj: 1 });
+      go({ screen: 'viewer', tab: view.tab, num: keyOf(currentHymn), proj: 1 });
     }
 
     function splitSections(lyrics) {
@@ -1162,7 +1317,7 @@
       if (projSecs.length === 0) projSecs = [h.lyrics];
       projIdx = projEnterAtEnd ? projSecs.length - 1 : 0;
       projEnterAtEnd = false;
-      $('projTitle').innerText = `${h.num}장 ${h.title}`;
+      $('projTitle').innerText = songTitleFull(h);
       renderProj();
       $('projector').style.display = 'flex';
       keepAwake(true);
@@ -1184,7 +1339,7 @@
       const nx = nextInCtx(1);
       if (nx && projIdx === projSecs.length - 1) {
         bar.style.display = 'flex';
-        bar.innerHTML = `⏭ 다음 곡 · ${nx.h.num}장 ${esc(nx.h.title)}`;
+        bar.innerHTML = `⏭ 다음 곡 · ${esc(songTitleFull(nx.h))}`;
       } else bar.style.display = 'none';
     }
 
@@ -1195,7 +1350,7 @@
       if (!p) return null;
       const idx = playlistCtx.idx + dir;
       if (idx < 0 || idx >= p.nums.length) return null;
-      const h = hymns.find(x => x.num === p.nums[idx]);
+      const h = findSong(p.nums[idx]);
       return h ? { h, idx, p } : null;
     }
 
@@ -1205,10 +1360,10 @@
       const nx = nextInCtx(dir);
       if (!nx) { if (dir > 0) showToast('✔ 순서의 마지막 곡입니다'); return false; }
       playlistCtx = { kind: playlistCtx.kind || 'pl', id: nx.p.id, idx: nx.idx };
-      pushRecent(nx.h.num);
+      pushRecent(keyOf(nx.h));
       projEnterAtEnd = (dir < 0);
-      go({ screen: 'viewer', tab: view.tab, num: nx.h.num, proj: 1 }, true);
-      showToast(`${dir > 0 ? '⏭' : '⏮'} ${nx.h.num}장 ${nx.h.title}`);
+      go({ screen: 'viewer', tab: view.tab, num: keyOf(nx.h), proj: 1 }, true);
+      showToast(`${dir > 0 ? '⏭' : '⏮'} ${songTitleFull(nx.h)}`);
       return true;
     }
     function projTap(e) {
@@ -1260,7 +1415,7 @@
 
     // ================== 복사 / 공유 ==================
     function getLyricsText() {
-      return `${currentHymn.num}장 ${currentHymn.title}\n\n${currentHymn.lyrics}`;
+      return `${songTitleFull(currentHymn)}\n\n${currentHymn.lyrics}`;
     }
     async function copyLyrics() {
       if (!currentHymn) return;
@@ -1278,7 +1433,7 @@
     }
     async function shareLyrics() {
       if (!currentHymn) return;
-      const title = `${currentHymn.num}장 ${currentHymn.title}`;
+      const title = songTitleFull(currentHymn);
       if (navigator.share) {
         try { await navigator.share({ title, text: getLyricsText() }); } catch (e) {}
       } else await copyLyrics();
@@ -1316,6 +1471,87 @@
       if (_modalCb) { const cb = _modalCb; _modalCb = null; cb(v); }
     }
 
+    // ================== 🎶 내 CCM 추가 / 수정 ==================
+    function openCcmEditor(id) {
+      const c = id ? myCcms.find(x => x.id === id) : null;
+      openModal(`
+        <h3>${c ? '✏️ CCM 수정' : '＋ CCM 곡 추가'}</h3>
+        <div class="m-sec-title">제목</div>
+        <input type="text" id="ccmTitle" placeholder="예: 주 품에" value="${c ? esc(c.title) : ''}" autocomplete="off">
+        <div class="m-sec-title">태그 (쉼표로 구분, 선택)</div>
+        <input type="text" id="ccmTags" placeholder="예: 경배, 느린곡" value="${c ? esc((c.tags || []).join(', ')) : ''}" autocomplete="off">
+        <div class="m-sec-title">가사</div>
+        <textarea id="ccmLyrics" rows="9" placeholder="(1) 첫째 절 가사&#10;(후렴) 후렴 가사&#10;(2) 둘째 절 가사">${c ? esc(c.lyrics) : ''}</textarea>
+        <div class="m-note">
+          <b>(1) (2) (후렴)</b> 표기를 넣으면 프로젝터에서 한 절씩 넘어가고, 후렴은 색이 다르게 표시됩니다.
+        </div>
+        <div class="m-btns">
+          <button class="m-cancel" onclick="closeModal()">취소</button>
+          <button class="m-ok" onclick="saveMyCcm('${c ? c.id : ''}')">저장</button>
+        </div>
+        ${c ? `<div class="m-btns" style="margin-top:8px;"><button class="m-cancel" style="color:#dc2626;" onclick="deleteMyCcm('${c.id}')">🗑 이 곡 삭제</button></div>` : ''}
+        <div class="m-note" style="margin-top:12px;">
+          이 곡은 <b>내 폰에만</b> 저장됩니다. 교인 모두에게 배포하려면
+          ⚙️ 설정 → <b>내 CCM 내보내기</b>로 텍스트를 뽑아 <code>ccm.json</code>에 반영하세요.
+        </div>
+      `);
+      setTimeout(() => { const i = $('ccmTitle'); if (i) i.focus(); }, 60);
+    }
+
+    function saveMyCcm(id) {
+      const title = $('ccmTitle').value.trim();
+      const lyrics = $('ccmLyrics').value.replace(/\r/g, '').trim();
+      const tags = $('ccmTags').value.split(/[,\/]/).map(t => t.trim()).filter(Boolean);
+      if (!title) { showToast('제목을 입력해 주세요'); return; }
+      if (!lyrics) { showToast('가사를 입력해 주세요'); return; }
+      const dup = songIndex.get(id) ? null : ccmAll.find(c => c.title === title);
+      if (dup) { showToast('같은 제목의 CCM이 이미 있습니다'); return; }
+
+      if (id) {
+        const c = myCcms.find(x => x.id === id);
+        if (c) { c.title = title; c.lyrics = lyrics; c.tags = tags; }
+      } else {
+        myCcms.push({ id: 'my-' + Date.now(), title, lyrics, tags, mine: true });
+      }
+      saveMyCcms();
+      rebuildIndex();
+      closeModal();
+      showToast(id ? '✅ 수정했습니다' : `✅ '${title}' 추가됨`);
+      if (view.screen === 'viewer') { const h = findSong(id); if (h) showViewer(h); }
+      else { view.tab = 'ccm'; go({ screen: 'home', tab: 'ccm' }, true); }
+    }
+
+    function deleteMyCcm(id) {
+      myCcms = myCcms.filter(x => x.id !== id);
+      favorites = favorites.filter(f => String(f) !== String(id));
+      saveFavs(); saveMyCcms(); rebuildIndex(); closeModal();
+      showToast('삭제했습니다');
+      go({ screen: 'home', tab: 'ccm' }, true);
+    }
+
+    // 변환기(convert_ccm.py) 형식으로 내보내기
+    function exportMyCcm() {
+      if (!myCcms.length) { showToast('앱에서 추가한 CCM이 없습니다'); return ''; }
+      return myCcms.map(c => {
+        const head = '=== ' + c.title + ((c.tags || []).length ? ' | 태그: ' + c.tags.join(',') : '');
+        return head + '\n' + c.lyrics;
+      }).join('\n\n');
+    }
+    async function copyMyCcm() {
+      const t = exportMyCcm(); if (!t) return;
+      try { await navigator.clipboard.writeText(t); showToast('📋 복사했습니다'); }
+      catch (e) { showToast('복사 실패 — 파일로 저장해 주세요'); }
+    }
+    function downloadMyCcm() {
+      const t = exportMyCcm(); if (!t) return;
+      const blob = new Blob([t], { type: 'text/plain;charset=utf-8' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'ccm_원본_추가분.txt';
+      a.click();
+      URL.revokeObjectURL(a.href);
+    }
+
     // ================== 🔢 번호 키패드 ==================
     let padVal = '';
     function openKeypad() {
@@ -1346,14 +1582,14 @@
     }
     function padBack() { padVal = padVal.slice(0, -1); updatePad(); }
     function updatePad() {
-      const h = padVal ? hymns.find(x => x.num === parseInt(padVal, 10)) : null;
+      const h = padVal ? findSong(parseInt(padVal, 10)) : null;
       $('padNum').textContent = padVal || '—';
       $('padTitle').textContent = !padVal ? '번호를 누르세요 (1–645)' : (h ? h.title : '없는 번호입니다');
       const go = $('padGo');
       if (go) go.disabled = !h;
     }
     function padGo() {
-      const h = hymns.find(x => x.num === parseInt(padVal || '0', 10));
+      const h = findSong(parseInt(padVal || '0', 10));
       if (!h) { showToast('없는 번호입니다'); return; }
       closeModal();
       openHymn(h.num);
@@ -1367,6 +1603,7 @@
       const backupData = JSON.stringify({
         app: 'hymnal-backup', ver: 1,
         favs: favorites, lists: playlists, cats: customCats, extras: catExtras, recent: recents,
+        myccm: myCcms,
         size: fontSize, projSize: projScale, favSort: favSort,
         dark: document.documentElement.classList.contains('dark-mode') ? 1 : 0
       }, null, 1);
@@ -1375,6 +1612,15 @@
         <div class="m-sec-title">📱 앱으로 설치 (오프라인 사용)</div>
         <div class="m-note">• Android/Chrome: 브라우저 메뉴 ⋮ → <b>앱 설치</b> 또는 <b>홈 화면에 추가</b><br>• iPhone/Safari: 공유 버튼 → <b>홈 화면에 추가</b><br>• 설치하면 인터넷 없이도 사용할 수 있습니다</div>
         ${deferredInstall ? `<button class="m-row" onclick="doInstall()">📲 지금 앱 설치하기</button>` : ''}
+        <div class="m-sec">
+          <div class="m-sec-title">🎶 내 CCM (${myCcms.length}곡)</div>
+          <div class="m-btns">
+            <button class="m-ok" onclick="openCcmEditor()">＋ 곡 추가</button>
+            <button class="m-cancel" onclick="copyMyCcm()">복사</button>
+            <button class="m-cancel" onclick="downloadMyCcm()">텍스트 저장</button>
+          </div>
+          <div class="m-note">앱에서 추가한 CCM을 <b>변환기 형식</b>으로 뽑습니다. 이 텍스트를 <code>ccm_원본.txt</code>에 붙여넣고 변환하면 모든 교인에게 배포됩니다.</div>
+        </div>
         <div class="m-sec">
           <div class="m-sec-title">🔤 글자 크기</div>
           <div class="size-row">
@@ -1410,7 +1656,7 @@
         <div class="ver-box" onclick="verTap()">
           <div class="ver-main">${APP_NAME} <b>${APP_VERSION}</b></div>
           <div class="ver-sub">
-            빌드 ${APP_BUILD} · 찬송가 ${hymns.length}곡<br>
+            빌드 ${APP_BUILD} · 찬송가 ${hymns.length}곡 · CCM ${ccmAll.length}곡<br>
             <span id="verNet">${navigator.onLine ? '🟢 온라인' : '⚪ 오프라인'}</span>
             · <span id="verSw">${'serviceWorker' in navigator && navigator.serviceWorker.controller ? '오프라인 저장 사용중' : '오프라인 저장 꺼짐'}</span>
           </div>
@@ -1469,6 +1715,7 @@
         if (Array.isArray(d.cats)) { customCats = d.cats; saveCats(); }
         if (d.extras && typeof d.extras === 'object') { catExtras = d.extras; saveCatExtras(); }
         if (Array.isArray(d.recent)) { recents = d.recent; localStorage.setItem('hymn_recent', JSON.stringify(recents)); }
+        if (Array.isArray(d.myccm)) { myCcms = d.myccm; saveMyCcms(); }
         if (d.size) { fontSize = d.size; localStorage.setItem('hymn_size', d.size); }
         if (d.projSize) localStorage.setItem('hymn_proj_size', d.projSize);
         if (d.favSort) localStorage.setItem('hymn_fav_sort', d.favSort);
@@ -1488,14 +1735,13 @@
     // ================== 즐겨찾기 / 글씨크기 / 다크모드 ==================
     function toggleFavCurrent() {
       if (!currentHymn) return;
-      const idx = favorites.indexOf(currentHymn.num);
-      if (idx > -1) favorites.splice(idx, 1); else favorites.push(currentHymn.num);
-      saveFavs();
-      updateViewerStar();
+      toggleFavKey(keyOf(currentHymn));
     }
     function updateViewerStar() {
       const star = $('viewerStar');
-      star.style.color = favorites.includes(currentHymn.num) ? '#f59e0b' : 'inherit';
+      if (!star || !currentHymn) return;
+      const k = keyOf(currentHymn);
+      star.style.color = favorites.some(f => String(f) === String(k)) ? '#f59e0b' : 'inherit';
     }
     function changeFontSize(val) { setFontSize(fontSize + val); }
     function setFontSize(val) {
@@ -1560,7 +1806,7 @@
       if (e.key !== 'Enter') return;
       const q = $('searchInput').value.trim();
       if (/^\d{1,3}$/.test(q)) {
-        const h = hymns.find(x => x.num === parseInt(q, 10));
+        const h = findSong(parseInt(q, 10));
         if (h) { $('searchInput').blur(); openHymn(h.num); }
       }
     });
@@ -1587,11 +1833,18 @@
 
     function swipeHymn(dir) {
       if (!currentHymn) return;
-      const n = currentHymn.num + dir;
-      if (n < 1 || n > hymns.length) { showToast(dir > 0 ? '마지막 찬송가입니다' : '처음 찬송가입니다'); return; }
-      playlistCtx = null;   // 순서 밖으로 탐색하면 '다음 곡' 바를 숨김
+      let nx = null;
+      if (currentHymn.book === 'hymn') {
+        const n = currentHymn.num + dir;
+        if (n >= 1 && n <= maxHymnNum) nx = findSong(n);
+      } else {
+        const i = ccmAll.indexOf(currentHymn) + dir;
+        if (i >= 0 && i < ccmAll.length) nx = ccmAll[i];
+      }
+      if (!nx) { showToast(dir > 0 ? '마지막 곡입니다' : '처음 곡입니다'); return; }
+      playlistCtx = null;
       animEl($('viewerLyrics'), dir);
-      go({ screen: 'viewer', tab: view.tab, num: n }, true);  // 히스토리 대체 → 뒤로가기는 목록으로
+      go({ screen: 'viewer', tab: view.tab, num: keyOf(nx) }, true);
     }
 
     // 요소에 좌/우 슬라이드 애니메이션 적용
