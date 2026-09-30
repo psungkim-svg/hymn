@@ -7,7 +7,7 @@
 //  2) 페이지 요청 판별을 경로 정규식 → request.mode === 'navigate' 로 변경
 //     (https://계정.github.io/저장소/ 처럼 /index.html 이 안 붙는 주소에서도 새 버전이 내려옴)
 //  3) 오프라인 시 네비게이션 요청은 index.html 캐시로 폴백
-const CACHE = 'hymnal-v7';
+const CACHE = 'hymnal-v7-1';
 const ASSETS = [
   './',
   './index.html',

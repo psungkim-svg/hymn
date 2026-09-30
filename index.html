@@ -76,9 +76,10 @@
     /* 탭 메뉴 */
     .tabs { display: flex; border-bottom: 1px solid var(--border); background: var(--bg); }
     .tab {
-      flex: 1; text-align: center; padding: 12px 2px; font-size: 13.5px; font-weight: 800;
-      color: var(--sub-text); cursor: pointer; white-space: nowrap; letter-spacing: -0.4px;
+      flex: 1; text-align: center; padding: 13px 0; font-size: 17px; font-weight: 800;
+      color: var(--sub-text); cursor: pointer; white-space: nowrap; letter-spacing: -1px;
     }
+    @media (max-width: 360px) { .tab { font-size: 15.5px; letter-spacing: -1.2px; } }
     .tab.active { color: var(--primary); border-bottom: 3px solid var(--primary); }
 
     /* 리스트 */
@@ -225,7 +226,7 @@
     .next-bar span { flex: 1; font-size: 14px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
     .viewer-lyrics {
       flex: 1; padding: 24px 20px calc(24px + env(safe-area-inset-bottom)); overflow-y: auto; white-space: pre-wrap;
-      line-height: 1.5; font-weight: bold; user-select: text; -webkit-user-select: text;
+      line-height: 1.5; font-weight: 600; user-select: text; -webkit-user-select: text;
     }
     /* 절과 절 사이를 확실히 구분 (첫 줄 제외) */
     .viewer-lyrics .vs:not(:first-child) { margin-top: 1.2em; }
@@ -330,7 +331,7 @@
     .size-row { display: flex; align-items: center; gap: 10px; margin: 6px 0 2px; }
     .size-row input[type=range] { flex: 1; accent-color: var(--primary); }
     .size-row .size-val { font-size: 13px; color: var(--sub-text); width: 44px; text-align: right; }
-    .size-prev { font-weight: bold; line-height: 1.5; padding: 10px 12px; background: var(--card-bg);
+    .size-prev { font-weight: 600; line-height: 1.5; padding: 10px 12px; background: var(--card-bg);
       border: 1px solid var(--border); border-radius: 9px; margin-top: 8px; }
 
     /* 즐겨찾기 정렬 */
@@ -408,9 +409,9 @@
   <div class="tabs">
     <div class="tab active" id="tabAll" onclick="changeTab('all')">찬송가</div>
     <div class="tab" id="tabCcm" onclick="changeTab('ccm')">CCM</div>
-    <div class="tab" id="tabFav" onclick="changeTab('fav')">⭐즐겨찾기</div>
-    <div class="tab" id="tabCat" onclick="changeTab('cat')">📂분류별</div>
-    <div class="tab" id="tabList" onclick="changeTab('list')">📋예배순서</div>
+    <div class="tab" id="tabFav" onclick="changeTab('fav')">즐겨찾기</div>
+    <div class="tab" id="tabCat" onclick="changeTab('cat')">분류별</div>
+    <div class="tab" id="tabList" onclick="changeTab('list')">예배순서</div>
   </div>
 
   <!-- 목록 -->
@@ -464,8 +465,8 @@
 
   <script>
     // ================== 앱 버전 ==================
-    const APP_VERSION = 'v7.0';
-    const APP_BUILD   = '2026-09-29';
+    const APP_VERSION = 'v7.1';
+    const APP_BUILD   = '2026-09-30';
     const APP_NAME    = 'SK새찬송가';
 
     let hymns = [];            // 찬송가 645장
