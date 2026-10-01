@@ -3,12 +3,37 @@
     "title": "Amazing Grace",
     "tags": [
       "grace",
-      "classic"
+      "classic",
+      "은혜"
     ],
     "key": "G",
-    "artist": "",
+    "artist": "John Newton (1779)",
     "youtube": "",
     "lyrics": "(1) Amazing grace! how sweet the sound\nThat saved a wretch like me!\nI once was lost, but now am found,\nWas blind, but now I see.\n\n(2) 'Twas grace that taught my heart to fear,\nAnd grace my fears relieved;\nHow precious did that grace appear\nThe hour I first believed!\n\n(3) Through many dangers, toils and snares,\nI have already come;\n'Tis grace hath brought me safe thus far,\nAnd grace will lead me home.\n\n(4) When we've been there ten thousand years,\nBright shining as the sun,\nWe've no less days to sing God's praise\nThan when we'd first begun.",
     "id": "en-001"
+  },
+  {
+    "title": "Holy Forever",
+    "tags": [
+      "경배",
+      "저작권곡"
+    ],
+    "key": "Db",
+    "artist": "Chris Tomlin, Phil Wickham, Brian & Jenn Johnson, Jason Ingram (2022, CCLI 7201044)",
+    "youtube": "",
+    "lyrics": "(1) 저작권이 있는 곡입니다. 가사를 여기에 붙여넣어 주세요.\n(후렴) CCLI 7201044 · SongSelect 에서 가져오시면 됩니다.",
+    "id": "en-003"
+  },
+  {
+    "title": "You Raise Me Up",
+    "tags": [
+      "위로",
+      "저작권곡"
+    ],
+    "key": "Bb",
+    "artist": "Brendan Graham / Rolf Lovland (2002)",
+    "youtube": "",
+    "lyrics": "(1) 저작권이 있는 곡입니다. 가사를 여기에 붙여넣어 주세요.\n(후렴) 공식 가사집이나 CCLI SongSelect 에서 가져오시면 됩니다.",
+    "id": "en-002"
   }
 ]

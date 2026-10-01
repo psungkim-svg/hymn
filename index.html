@@ -80,9 +80,12 @@
       color: var(--sub-text); cursor: pointer; white-space: nowrap; letter-spacing: -1px;
     }
     @media (max-width: 360px) { .tab { font-size: 15.5px; letter-spacing: -1.2px; } }
-    /* 내 모드에서 탭이 6개가 되면 글자를 줄여 한 줄에 담는다 */
-    .tabs.tabs-6 .tab { font-size: 14px; letter-spacing: -1.3px; padding: 13px 0; }
-    @media (max-width: 400px) { .tabs.tabs-6 .tab { font-size: 12.5px; letter-spacing: -1.5px; } }
+    /* 내 모드(탭 6개)에서도 글자 크기는 교인용 4개짜리와 똑같이 17px 유지.
+       폭이 모자라면 줄이지 않고 좌우로 스크롤한다. */
+    .tabs { overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+    .tabs::-webkit-scrollbar { display: none; }
+    .tabs.tabs-6 .tab { flex: 1 0 auto; padding: 13px 6px; letter-spacing: -1.2px; }
+    @media (max-width: 390px) { .tabs.tabs-6 .tab { padding: 13px 4px; letter-spacing: -1.4px; } }
     .tab.active { color: var(--primary); border-bottom: 3px solid var(--primary); }
     /* 다크모드: 선택 안 된 탭은 흰색, 선택된 탭만 파랑 */
     .dark-mode .tab { color: #ffffff; }
@@ -446,9 +449,9 @@
   <!-- 탭 메뉴 -->
   <div class="tabs">
     <div class="tab active" id="tabAll" onclick="changeTab('all')">찬송가</div>
+    <div class="tab" id="tabFav" onclick="changeTab('fav')">즐겨찾기</div>
     <div class="tab" id="tabCcm" style="display:none;" onclick="changeTab('ccm')">CCM</div>
     <div class="tab" id="tabEn" style="display:none;" onclick="changeTab('en')">영어</div>
-    <div class="tab" id="tabFav" onclick="changeTab('fav')">즐겨찾기</div>
     <div class="tab" id="tabCat" onclick="changeTab('cat')">분류별</div>
     <div class="tab" id="tabList" onclick="changeTab('list')">예배순서</div>
   </div>
@@ -504,7 +507,7 @@
 
   <script>
     // ================== 앱 버전 ==================
-    const APP_VERSION = 'v7.4';
+    const APP_VERSION = 'v7.5';
     const APP_BUILD   = '2026-10-01';
     const APP_NAME    = 'SK새찬송가';
 
@@ -706,20 +709,37 @@
       for (const h of hymns.concat(ccmAll, enAll)) {
         h._t = h.title.toLowerCase();
         h._l = (h.lyrics || '').toLowerCase();
+        // 띄어쓰기·문장부호를 뺀 사본 — "주사랑안에"로도 "주 사랑 안에"를 찾게 해준다
+        h._ts = h._t.replace(/[\s.,!?'"~\-·()]/g, '');
+        h._ls = h._l.replace(/[\s.,!?'"~\-·()]/g, '');
         h._ct = toChosung(h.title).replace(/\s/g, '');
         h._cl = toChosung(h.lyrics || '').replace(/\s/g, '');
       }
     }
 
+    // 검색어에서 띄어쓰기·문장부호 제거
+    const squash = t => (t || '').replace(/[\s.,!?'"~\-·()]/g, '');
     function matchQ(h, q) {
       if (!q) return true;
       if (isChosungQuery(q)) {
         const c = q.replace(/\s/g, '');
         return (h._ct || '').includes(c) || (h._cl || '').includes(c);
       }
-      return (h.num != null && h.num.toString() === q) ||
-             (h._t || h.title.toLowerCase()).includes(q) ||
-             (h._l || (h.lyrics || '').toLowerCase()).includes(q);
+      if ((h.num != null && h.num.toString() === q) ||
+          (h._t || h.title.toLowerCase()).includes(q) ||
+          (h._l || (h.lyrics || '').toLowerCase()).includes(q)) return true;
+      // 띄어쓰기가 달라도 찾기
+      const qs = squash(q);
+      if (qs.length < 2) return false;
+      return (h._ts || squash(h._t || h.title.toLowerCase())).includes(qs) ||
+             (h._ls || squash(h._l || (h.lyrics || '').toLowerCase())).includes(qs);
+    }
+    // 띄어쓰기를 무시하고 찾기 위한 정규식 (글자 사이에 공백·부호가 끼어도 매치)
+    function flexRe(q) {
+      const chars = squash(q).split('');
+      if (!chars.length) return null;
+      const body = chars.map(c => c.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('[\\s.,!?\'"~\\-·()]*');
+      try { return new RegExp(body, 'gi'); } catch (e) { return null; }
     }
 
     function esc(s) {
@@ -728,15 +748,31 @@
     function hlTitle(title, q) {
       if (!q || isChosungQuery(q)) return esc(title);
       const idx = title.toLowerCase().indexOf(q);
-      if (idx < 0) return esc(title);
-      return esc(title.slice(0, idx)) +
-             '<span class="hl">' + esc(title.slice(idx, idx + q.length)) + '</span>' +
-             esc(title.slice(idx + q.length));
+      if (idx >= 0) {
+        return esc(title.slice(0, idx)) +
+               '<span class="hl">' + esc(title.slice(idx, idx + q.length)) + '</span>' +
+               esc(title.slice(idx + q.length));
+      }
+      return hlFlex(title, q);
+    }
+    // 띄어쓰기가 달라도 찾은 부분에 색을 입힌다
+    function hlFlex(text, q) {
+      const re = flexRe(q);
+      if (!re) return esc(text);
+      let out = '', last = 0, m, guard = 0;
+      while ((m = re.exec(text)) !== null && guard++ < 200) {
+        if (m[0] === '') { re.lastIndex++; continue; }
+        out += esc(text.slice(last, m.index)) + '<span class="hl">' + esc(m[0]) + '</span>';
+        last = m.index + m[0].length;
+      }
+      if (!last) return esc(text);
+      return out + esc(text.slice(last));
     }
 
     // 가사 검색 스니펫: 검색어가 들어간 가사 줄을 잘라서 하이라이트
     function hlAll(text, q) {
       if (!q) return esc(text);
+      if (!text.toLowerCase().includes(q)) return hlFlex(text, q);
       let out = '', low = text.toLowerCase(), i = 0;
       while (true) {
         const j = low.indexOf(q, i);
@@ -749,10 +785,15 @@
     function snippetOf(h, q) {
       if (!q || isChosungQuery(q) || /^\d+$/.test(q)) return '';
       if (h.title.toLowerCase().includes(q)) return '';
-      const line = h.lyrics.split('\n').find(l => l.toLowerCase().includes(q));
+      const qs = squash(q);
+      if (squash(h.title.toLowerCase()).includes(qs)) return '';
+      const lines = (h.lyrics || '').split('\n');
+      let line = lines.find(l => l.toLowerCase().includes(q));
+      if (!line) line = lines.find(l => squash(l.toLowerCase()).includes(qs));
       if (!line) return '';
       let t = line.trim().replace(/^\((?:\d+|후렴[^)]*)\)\s*/, '');
-      const pos = t.toLowerCase().indexOf(q);
+      let pos = t.toLowerCase().indexOf(q);
+      if (pos < 0) { const m = flexRe(q); const mm = m ? m.exec(t) : null; pos = mm ? mm.index : 0; }
       let pre = '';
       if (pos > 14) { t = t.slice(pos - 12); pre = '…'; }
       if (t.length > 46) t = t.slice(0, 46) + '…';
@@ -1995,7 +2036,9 @@
     function changeTab(tab) {
       if (view.screen === 'home' && view.tab === tab) return;
       pendingDelete = false;
-      go({ screen: 'home', tab }, true);
+      // 뒤로가기를 누르면 방금 보던 탭으로 되돌아가고, 맨 끝(찬송가 탭)에서만 앱이 닫히도록
+      // 탭 이동도 방문 기록에 남긴다
+      go({ screen: 'home', tab }, false);
     }
 
     // 타자 칠 때마다 645곡을 다시 그리면 느려서, 잠깐 멈출 때만 그린다
