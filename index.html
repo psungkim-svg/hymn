@@ -282,6 +282,23 @@
     }
     .proj-dot.active { background: var(--primary); width: 24px; border-radius: 5px; }
 
+    /* 새 버전 알림 띠 */
+    #updBar {
+      position: fixed; left: 0; right: 0; bottom: 0; z-index: 950;
+      display: none; align-items: center; gap: 10px;
+      padding: 14px 16px calc(14px + env(safe-area-inset-bottom));
+      background: #2563eb; color: #fff; font-size: 15px; font-weight: 700;
+      box-shadow: 0 -4px 18px rgba(0,0,0,.22);
+    }
+    #updBar.on { display: flex; }
+    #updBar .txt { flex: 1; line-height: 1.35; }
+    #updBar .txt small { display: block; font-weight: 500; opacity: .85; font-size: 12.5px; }
+    #updBar button {
+      border: 0; border-radius: 9px; padding: 10px 14px; font-size: 14.5px;
+      font-weight: 800; cursor: pointer; background: #fff; color: #1d4ed8;
+    }
+    #updBar button.later { background: rgba(255,255,255,.18); color: #fff; padding: 10px; }
+
     /* 두 손가락 확대 중 표시되는 배지 */
     #zoomBadge {
       position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%);
@@ -487,7 +504,7 @@
 
   <script>
     // ================== 앱 버전 ==================
-    const APP_VERSION = 'v7.3';
+    const APP_VERSION = 'v7.4';
     const APP_BUILD   = '2026-10-01';
     const APP_NAME    = 'SK새찬송가';
 
@@ -1831,6 +1848,7 @@
       forceUpdate();
     }
     async function forceUpdate() {
+      const b = $('updBar'); if (b) b.classList.remove('on');
       showToast('최신 버전을 받는 중…');
       try {
         if ('caches' in window) {
@@ -2113,10 +2131,64 @@
     }
 
     // PWA 서비스 워커 등록 (http/https에서만, file://은 무시)
+    let swReg = null;
     if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1')) {
-      navigator.serviceWorker.register('sw.js').catch(() => {});
+      // ① 주소에 버전을 붙여 등록 → 새 버전을 올리면 주소가 바뀌므로
+      //    GitHub CDN(10분 캐시)이 옛 sw.js를 돌려주는 문제를 건너뛴다
+      // ② updateViaCache:'none' → 브라우저가 sw.js 를 캐시에서 꺼내 쓰지 않는다
+      navigator.serviceWorker.register('sw.js?v=' + APP_VERSION, { updateViaCache: 'none' })
+        .then(reg => { swReg = reg; setTimeout(() => { try { reg.update(); } catch (e) {} }, 3000); })
+        .catch(() => {});
     }
+
+    // ================== 🔄 새 버전 자동 감지 ==================
+    // GitHub Pages 는 파일을 CDN 에 10분간 캐시하고,
+    // 설치된 앱(PWA)은 되살아날 때 페이지를 새로 열지 않아 업데이트를 놓치기 쉽다.
+    // → version.json 을 캐시 우회(시각 붙이기 + no-store)로 직접 확인한다.
+    let lastUpdCheck = 0;
+    let updDismissed = '';
+    async function checkForUpdate(silent) {
+      if (location.protocol === 'file:') return;
+      const now = Date.now();
+      if (silent && now - lastUpdCheck < 60000) return;   // 1분에 한 번만
+      lastUpdCheck = now;
+      try {
+        const r = await fetch('version.json?t=' + now, { cache: 'no-store' });
+        if (!r.ok) return;
+        const d = await r.json();
+        if (!d || !d.version) return;
+        if (d.version !== APP_VERSION && d.version !== updDismissed) {
+          showUpdateBar(d.version);
+        }
+      } catch (e) { /* 오프라인이면 조용히 넘어감 */ }
+      try { if (swReg) swReg.update(); } catch (e) {}
+    }
+    function showUpdateBar(v) {
+      const b = $('updBar'), t = $('updVer');
+      if (!b) return;
+      if (t) t.textContent = '(' + v + ')';
+      b.classList.add('on');
+      b.dataset.ver = v;
+    }
+    function dismissUpdate() {
+      const b = $('updBar');
+      updDismissed = (b && b.dataset.ver) || '';
+      if (b) b.classList.remove('on');
+      showToast('설정 맨 아래 버전을 7번 누르면 언제든 업데이트됩니다');
+    }
+    // 앱을 켤 때, 그리고 다른 앱 쓰다가 돌아올 때마다 확인
+    setTimeout(() => checkForUpdate(false), 1500);
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') checkForUpdate(true);
+    });
+    window.addEventListener('focus', () => checkForUpdate(true));
+    window.addEventListener('online', () => checkForUpdate(true));
   </script>
   <div id="zoomBadge"></div>
+  <div id="updBar">
+    <div class="txt">새 버전이 나왔습니다 <span id="updVer"></span><small>눌러서 바로 받기 (몇 초면 끝납니다)</small></div>
+    <button onclick="forceUpdate()">업데이트</button>
+    <button class="later" onclick="dismissUpdate()">나중에</button>
+  </div>
 </body>
 </html>
