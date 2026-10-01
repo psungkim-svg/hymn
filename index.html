@@ -285,6 +285,20 @@
     }
     .proj-dot.active { background: var(--primary); width: 24px; border-radius: 5px; }
 
+    /* 설정 맨 위 '내 모드' 상태 줄 */
+    .owner-row {
+      display: flex; align-items: center; gap: 10px; margin: 0 0 14px;
+      padding: 12px 14px; border-radius: 12px;
+      background: #eef2ff; border: 2px solid var(--primary);
+    }
+    .dark-mode .owner-row { background: #1e2a4a; }
+    .owner-row .owner-txt { flex: 1; font-size: 15px; color: var(--text); }
+    .owner-row .owner-txt small { display: block; margin-top: 3px; font-size: 12.5px; color: var(--sub-text); font-weight: 500; }
+    .owner-row .owner-off {
+      border: 0; border-radius: 10px; padding: 9px 12px; cursor: pointer;
+      background: var(--primary); color: #fff; font-size: 13px; font-weight: 800; line-height: 1.25;
+    }
+
     /* 새 버전 알림 띠 */
     #updBar {
       position: fixed; left: 0; right: 0; bottom: 0; z-index: 950;
@@ -507,7 +521,7 @@
 
   <script>
     // ================== 앱 버전 ==================
-    const APP_VERSION = 'v7.5';
+    const APP_VERSION = 'v7.6';
     const APP_BUILD   = '2026-10-01';
     const APP_NAME    = 'SK새찬송가';
 
@@ -1801,6 +1815,11 @@
       }, null, 1);
       openModal(`
         <h3>⚙️ 설정</h3>
+        ${ownerMode ? `
+        <div class="owner-row">
+          <div class="owner-txt"><b>🔓 내 모드 : 켜짐</b><small>CCM ${ccmAll.length}곡 · 영어 ${enAll.length}곡 탭이 보이는 중</small></div>
+          <button class="owner-off" onclick="askOwnerMode(false)">교인용으로<br>되돌리기</button>
+        </div>` : ''}
         <div class="m-sec-title">📱 앱으로 설치 (오프라인 사용)</div>
         <div class="m-note">• Android/Chrome: 브라우저 메뉴 ⋮ → <b>앱 설치</b> 또는 <b>홈 화면에 추가</b><br>• iPhone/Safari: 공유 버튼 → <b>홈 화면에 추가</b><br>• 설치하면 인터넷 없이도 사용할 수 있습니다</div>
         ${deferredInstall ? `<button class="m-row" onclick="doInstall()">📲 지금 앱 설치하기</button>` : ''}
@@ -1846,9 +1865,7 @@
           <div class="m-note">복원하면 현재 기기의 즐겨찾기/예배순서를 덮어씁니다.</div>
         </div>
         <div class="m-btns" style="margin-top:14px;"><button class="m-cancel" onclick="closeModal()">닫기</button></div>
-        <div class="ver-box" onclick="verTap()"
-             ontouchstart="ownerPressStart()" ontouchend="ownerPressEnd()" ontouchcancel="ownerPressEnd()"
-             onmousedown="ownerPressStart()" onmouseup="ownerPressEnd()" onmouseleave="ownerPressEnd()">
+        <div class="ver-box" onclick="verTap()">
           <div class="ver-main">${APP_NAME} <b>${APP_VERSION}</b></div>
           <div class="ver-sub">
             빌드 ${APP_BUILD} · 찬송가 ${hymns.length}곡${ownerMode ? ` · CCM ${ccmAll.length}곡 · 영어 ${enAll.length}곡` : ''}<br>
@@ -1860,24 +1877,9 @@
       `);
       window._backupData = backupData;
     }
-    // 버전 영역을 1.2초 길게 누르면 내 모드(CCM·영어 탭) 켜고 끄기
-    let ownerPressTimer = null, ownerPressed = false;
-    function ownerPressStart() {
-      ownerPressed = false;
-      clearTimeout(ownerPressTimer);
-      ownerPressTimer = setTimeout(() => {
-        ownerPressed = true;
-        verTaps = 0;
-        if (navigator.vibrate) { try { navigator.vibrate(40); } catch (e) {} }
-        setOwnerMode(!ownerMode);
-      }, 1200);
-    }
-    function ownerPressEnd() { clearTimeout(ownerPressTimer); }
-
     // 버전 영역을 7번 누르면 저장된 오프라인 캐시를 비우고 최신 파일을 다시 받음
     let verTaps = 0, verTimer = null;
     function verTap() {
-      if (ownerPressed) { ownerPressed = false; return; }   // 길게 누른 직후의 클릭은 무시
       verTaps++;
       clearTimeout(verTimer);
       verTimer = setTimeout(() => { verTaps = 0; }, 1500);
@@ -1997,6 +1999,36 @@
       if (wrap) wrap.classList.toggle('tabs-6', ownerMode);
       if (!ownerMode && (view.tab === 'ccm' || view.tab === 'en')) view.tab = 'all';
     }
+    // 켜기/끄기 전에 무엇이 달라지는지 분명히 보여 주고 확인받는다
+    function askOwnerMode(on) {
+      if (on) {
+        openModal(`
+          <h3>🔓 내 모드를 켤까요?</h3>
+          <div class="m-note" style="font-size:14px; line-height:1.6;">
+            이 기기에서만 <b>CCM 탭</b>과 <b>영어 탭</b>이 나타납니다.<br>
+            교인들에게 배포된 앱은 영향을 받지 않습니다.<br><br>
+            탭: 찬송가 · 즐겨찾기 · <b>CCM</b> · <b>영어</b> · 분류별 · 예배순서
+          </div>
+          <div class="m-btns">
+            <button class="m-cancel" onclick="closeModal()">취소</button>
+            <button class="m-ok" onclick="setOwnerMode(true)">켜기</button>
+          </div>`);
+      } else {
+        openModal(`
+          <h3>🔒 교인용으로 되돌릴까요?</h3>
+          <div class="m-note" style="font-size:14px; line-height:1.6;">
+            <b>CCM 탭</b>과 <b>영어 탭</b>이 사라지고, 교인들이 보는 화면과 똑같아집니다.<br>
+            탭: 찬송가 · 즐겨찾기 · 분류별 · 예배순서<br><br>
+            <b>지워지는 것은 없습니다.</b> 즐겨찾기·예배순서·내가 추가한 CCM 모두 그대로 남아 있고,
+            다시 켜면 즉시 돌아옵니다.<br><br>
+            다시 켜는 방법 → <b>검색창에 <code>내모드</code> 라고 입력</b>
+          </div>
+          <div class="m-btns">
+            <button class="m-cancel" onclick="closeModal()">취소</button>
+            <button class="m-ok" onclick="setOwnerMode(false)">교인용으로 되돌리기</button>
+          </div>`);
+      }
+    }
     function setOwnerMode(on) {
       ownerMode = !!on;
       localStorage.setItem('hymn_owner', ownerMode ? '1' : '0');
@@ -2006,7 +2038,7 @@
         rebuildIndex();
         closeModal();
         go({ screen: 'home', tab: 'all' }, true);
-        showToast('🔒 내 모드 꺼짐 — 교회 배포본과 같은 화면입니다');
+        showToast('🔒 교인용 화면으로 돌아왔습니다 (탭 4개)');
       } else {
         showToast('🔓 내 모드 켜짐 — 곡을 불러오는 중…');
         Promise.all([
@@ -2030,6 +2062,7 @@
           closeModal();
           applyView();
           showToast(`🔓 내 모드 켜짐 — CCM ${ccmAll.length}곡 · 영어 ${enAll.length}곡`);
+          setTimeout(openSettings, 400);   // 켜진 상태를 눈으로 확인시켜 줌
         });
       }
     }
@@ -2048,7 +2081,20 @@
       else if (view.screen === 'category') renderCategory();
       else if (view.screen === 'playlist' || view.screen === 'customcat') renderPlaylistDetail(view.id);
     }
+    // 검색창에 '내모드' 를 입력하면 내 모드 켜기/끄기 창이 열린다 (내가 쓰는 비밀 암호어)
+    const OWNER_WORDS = ['내모드', '내 모드', '#내모드', 'mymode', '0000'];
+    function checkOwnerWord() {
+      const raw = $('searchInput').value.trim().toLowerCase();
+      if (!OWNER_WORDS.includes(raw)) return false;
+      $('searchInput').value = '';
+      $('searchInput').blur();
+      runSearchRender();
+      askOwnerMode(!ownerMode);
+      return true;
+    }
+
     $('searchInput').addEventListener('input', () => {
+      if (checkOwnerWord()) return;
       if (view.screen === 'home' && (view.tab === 'cat' || view.tab === 'list')) {
         const q = $('searchInput').value.trim();
         if (q) { go({ screen: 'home', tab: 'all' }, true); return; }
