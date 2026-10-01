@@ -80,6 +80,9 @@
       color: var(--sub-text); cursor: pointer; white-space: nowrap; letter-spacing: -1px;
     }
     @media (max-width: 360px) { .tab { font-size: 15.5px; letter-spacing: -1.2px; } }
+    /* 내 모드에서 탭이 6개가 되면 글자를 줄여 한 줄에 담는다 */
+    .tabs.tabs-6 .tab { font-size: 14px; letter-spacing: -1.3px; padding: 13px 0; }
+    @media (max-width: 400px) { .tabs.tabs-6 .tab { font-size: 12.5px; letter-spacing: -1.5px; } }
     .tab.active { color: var(--primary); border-bottom: 3px solid var(--primary); }
     /* 다크모드: 선택 안 된 탭은 흰색, 선택된 탭만 파랑 */
     .dark-mode .tab { color: #ffffff; }
@@ -383,6 +386,7 @@
       background: #7c3aed; border-radius: 6px; padding: 2px 6px; letter-spacing: .3px;
     }
     .ccm-badge.mine { background: #059669; }
+    .ccm-badge.en { background: #7c3aed; }
     .song-sub { font-size: 12.5px; color: var(--sub-text); margin-top: 2px; }
     .empty-box {
       padding: 26px 22px; color: var(--sub-text); font-size: 14px; line-height: 1.85; text-align: center;
@@ -425,7 +429,8 @@
   <!-- 탭 메뉴 -->
   <div class="tabs">
     <div class="tab active" id="tabAll" onclick="changeTab('all')">찬송가</div>
-    <div class="tab" id="tabCcm" onclick="changeTab('ccm')">CCM</div>
+    <div class="tab" id="tabCcm" style="display:none;" onclick="changeTab('ccm')">CCM</div>
+    <div class="tab" id="tabEn" style="display:none;" onclick="changeTab('en')">영어</div>
     <div class="tab" id="tabFav" onclick="changeTab('fav')">즐겨찾기</div>
     <div class="tab" id="tabCat" onclick="changeTab('cat')">분류별</div>
     <div class="tab" id="tabList" onclick="changeTab('list')">예배순서</div>
@@ -482,8 +487,8 @@
 
   <script>
     // ================== 앱 버전 ==================
-    const APP_VERSION = 'v7.2';
-    const APP_BUILD   = '2026-09-30';
+    const APP_VERSION = 'v7.3';
+    const APP_BUILD   = '2026-10-01';
     const APP_NAME    = 'SK새찬송가';
 
     let hymns = [];            // 찬송가 645장
@@ -492,6 +497,22 @@
     let ccmAll = [];           // 위 둘을 합쳐 가나다순 정렬한 목록
     let songIndex = new Map(); // 키 → 곡
     let ccmTag = '';           // CCM 태그 필터
+    let ens = [];              // en.json 에서 읽어온 영어 찬송
+    let enAll = [];            // 영어 찬송 목록(정렬본)
+    let enTag = '';            // 영어 찬송 태그 필터
+
+    // ================== 🔒 내 모드 (나만 보이는 CCM·영어 탭) ==================
+    // 교회 배포본과 같은 파일이지만, 내 모드를 켠 기기에서만 CCM·영어 탭이 보인다.
+    // 켜는 법 ① 설정 맨 아래 버전 영역을 1.2초 길게 누르기  ② 주소 뒤에 ?full=1
+    let ownerMode = localStorage.getItem('hymn_owner') === '1';
+    (function () {
+      const qp = new URLSearchParams(location.search).get('full');
+      if (qp === '1' || qp === '0') {
+        ownerMode = (qp === '1');
+        localStorage.setItem('hymn_owner', ownerMode ? '1' : '0');
+        history.replaceState(null, '', location.pathname + location.hash);
+      }
+    })();
     let maxHymnNum = 645;
     let currentHymn = null;
     let fontSize = parseInt(localStorage.getItem('hymn_size') || '22', 10);
@@ -555,14 +576,24 @@
       hymns.forEach(h => { h.book = 'hymn'; songIndex.set(h.num, h); });
       ccmAll = ccms.concat(myCcms).sort((a, b) => a.title.localeCompare(b.title, 'ko'));
       ccmAll.forEach((c, i) => { c.book = 'ccm'; c.no = i + 1; songIndex.set(c.id, c); });
+      enAll = ens.slice().sort((a, b) => a.title.localeCompare(b.title, 'en'));
+      enAll.forEach((c, i) => { c.book = 'en'; c.no = i + 1; songIndex.set(c.id, c); });
       if (hymns.length) maxHymnNum = Math.max(...hymns.map(h => h.num));
       buildSearchIndex();
     }
-    const songLabel = s => (s.book === 'hymn' ? s.num + '장' : '<span class="ccm-badge' + (s.mine ? ' mine' : '') + '">CCM</span>');
+    const songLabel = s => (
+      s.book === 'hymn' ? s.num + '장'
+      : s.book === 'en' ? '<span class="ccm-badge en">ENG</span>'
+      : '<span class="ccm-badge' + (s.mine ? ' mine' : '') + '">CCM</span>');
     const songTitleFull = s => (s.book === 'hymn' ? s.num + '장 ' + s.title : s.title);
     function allCcmTags() {
       const t = new Set();
       ccmAll.forEach(c => (c.tags || []).forEach(x => t.add(x)));
+      return [...t].sort((a, b) => a.localeCompare(b, 'ko'));
+    }
+    function allEnTags() {
+      const t = new Set();
+      enAll.forEach(c => (c.tags || []).forEach(x => t.add(x)));
       return [...t].sort((a, b) => a.localeCompare(b, 'ko'));
     }
 
@@ -595,24 +626,32 @@
       $('viewer').style.display = 'none';
 
       const activeTab = view.tab;
+      applyOwnerTabs();
       $('tabAll').className  = 'tab ' + (activeTab === 'all'  ? 'active' : '');
       $('tabCcm').className  = 'tab ' + (activeTab === 'ccm'  ? 'active' : '');
+      $('tabEn').className   = 'tab ' + (activeTab === 'en'   ? 'active' : '');
       $('tabFav').className  = 'tab ' + (activeTab === 'fav'  ? 'active' : '');
       $('tabCat').className  = 'tab ' + (activeTab === 'cat'  ? 'active' : '');
       $('tabList').className = 'tab ' + (activeTab === 'list' ? 'active' : '');
 
-      if (view.screen === 'ccmtag') renderCcmTagView();
+      if (view.screen === 'entag') renderEnTagView();
+      else if (view.screen === 'ccmtag') renderCcmTagView();
       else if (view.screen === 'category') renderCategory();
       else if (view.screen === 'playlist' || view.screen === 'customcat') renderPlaylistDetail(view.id);
       else renderHome();
     }
     // =========================================================================
 
-    // 데이터 로드 (ccm.json 은 없어도 정상 동작)
+    // 데이터 로드 (ccm.json / en.json 은 없어도 정상 동작)
+    // ※ 내 모드가 꺼져 있으면 CCM·영어 파일을 아예 읽지 않는다 → 교회 배포본과 동일한 화면
+    const loadExtra = (file) => (ownerMode
+      ? fetch(file).then(r => (r.ok ? r.json() : [])).catch(() => [])
+      : Promise.resolve([]));
     Promise.all([
       fetch('hymns.json').then(r => r.json()),
-      fetch('ccm.json').then(r => (r.ok ? r.json() : [])).catch(() => [])
-    ]).then(([h, c]) => {
+      loadExtra('ccm.json'),
+      loadExtra('en.json')
+    ]).then(([h, c, e]) => {
       hymns = h;
       ccms = (Array.isArray(c) ? c : []).map((x, i) => ({
         id: x.id || ('ccm-' + String(i + 1).padStart(3, '0')),
@@ -620,6 +659,14 @@
         lyrics: x.lyrics || '',
         tags: Array.isArray(x.tags) ? x.tags : [],
         artist: x.artist || '', key: x.key || '', youtube: x.youtube || ''
+      }));
+      ens = (Array.isArray(e) ? e : []).map((x, i) => ({
+        id: x.id || ('en-' + String(i + 1).padStart(3, '0')),
+        title: x.title || '(no title)',
+        lyrics: x.lyrics || '',
+        tags: Array.isArray(x.tags) ? x.tags : [],
+        artist: x.artist || '', key: x.key || '', youtube: x.youtube || '',
+        hymnNum: x.hymnNum || 0
       }));
       rebuildIndex();
       applyView();
@@ -639,7 +686,7 @@
 
     // 초성 검색용 색인을 로드 직후 한 번만 만들어 둔다 (검색할 때마다 변환하면 느림)
     function buildSearchIndex() {
-      for (const h of hymns.concat(ccmAll)) {
+      for (const h of hymns.concat(ccmAll, enAll)) {
         h._t = h.title.toLowerCase();
         h._l = (h.lyrics || '').toLowerCase();
         h._ct = toChosung(h.title).replace(/\s/g, '');
@@ -737,6 +784,7 @@
       if (view.tab === 'cat')  { renderCatMenu(list); return; }
       if (view.tab === 'list') { renderPlaylistTab(list); return; }
       if (view.tab === 'ccm')  { renderCcmTab(list, q); return; }
+      if (view.tab === 'en')   { renderEnTab(list, q); return; }
 
       // 최근 본 곡 (찬송가 탭, 검색 없을 때)
       if (view.tab === 'all' && !q && recents.length > 0) {
@@ -814,6 +862,51 @@
       }
 
       const arr = ccmAll.filter(c => (!ccmTag || (c.tags || []).includes(ccmTag)) && matchQ(c, q));
+      renderHymnRows(list, arr, q);
+    }
+
+    // ================== 🎵 영어 찬송 탭 ==================
+    function renderEnTab(list, q) {
+      if (enAll.length === 0) {
+        list.innerHTML += `<div class="empty-box">
+          🎵 <b>아직 영어 찬송이 없습니다</b><br><br>
+          가사를 <code>가사추가/en_원본.txt</code> 에 적고<br>
+          <code>python3 convert_en.py</code> 를 실행하면<br>
+          <code>en.json</code> 이 만들어집니다.
+        </div>`;
+        return;
+      }
+      const tags = allEnTags();
+      if (tags.length) {
+        const row = document.createElement('div');
+        row.className = 'chip-row';
+        const mk = (label, val) => {
+          const c = document.createElement('div');
+          c.className = 'chip' + (enTag === val ? ' active' : '');
+          c.textContent = label;
+          c.onclick = () => { enTag = val; renderHome(); };
+          return c;
+        };
+        row.appendChild(mk('전체 ' + enAll.length, ''));
+        tags.forEach(t => row.appendChild(mk(t, t)));
+        list.appendChild(row);
+      }
+      const arr = enAll.filter(c => (!enTag || (c.tags || []).includes(enTag)) && matchQ(c, q));
+      renderHymnRows(list, arr, q);
+    }
+
+    // 분류별 탭에서 들어오는 영어 태그 화면
+    function renderEnTagView() {
+      const list = $('hymnList');
+      const q = $('searchInput').value.trim().toLowerCase();
+      list.innerHTML = '';
+      const bar = document.createElement('div');
+      bar.className = 'cat-header';
+      bar.innerHTML = `
+        <button class="cat-back" onclick="history.back()">‹ 분류 목록</button>
+        <div class="cat-cur"><b>🎵 ${esc(view.tag)}</b><span>English</span></div>`;
+      list.appendChild(bar);
+      const arr = enAll.filter(c => (c.tags || []).includes(view.tag) && matchQ(c, q));
       renderHymnRows(list, arr, q);
     }
 
@@ -933,6 +1026,26 @@
         div.onclick = () => go({ screen: 'category', tab: 'cat', cat: i, sub: -1 });
         list.appendChild(div);
       });
+
+      // 🎵 영어 찬송 태그별
+      if (enAll.length) {
+        const eh = document.createElement('div');
+        eh.className = 'cat-header';
+        eh.innerHTML = `<div class="cat-cur"><b>🎵 English</b><span>태그별로 보기 · ${enAll.length}곡</span></div>`;
+        list.appendChild(eh);
+        allEnTags().forEach(t => {
+          const n = enAll.filter(c => (c.tags || []).includes(t)).length;
+          const div = document.createElement('div');
+          div.className = 'cat-card';
+          div.innerHTML = `
+            <div class="cat-icon">🎵</div>
+            <div class="cat-name">${esc(t)}</div>
+            <div class="cat-range">${n}곡</div>
+            <div class="cat-arrow">›</div>`;
+          div.onclick = () => go({ screen: 'entag', tab: 'cat', tag: t });
+          list.appendChild(div);
+        });
+      }
 
       // 🎶 CCM 태그별
       if (ccmAll.length) {
@@ -1633,7 +1746,7 @@
         <div class="m-sec-title">📱 앱으로 설치 (오프라인 사용)</div>
         <div class="m-note">• Android/Chrome: 브라우저 메뉴 ⋮ → <b>앱 설치</b> 또는 <b>홈 화면에 추가</b><br>• iPhone/Safari: 공유 버튼 → <b>홈 화면에 추가</b><br>• 설치하면 인터넷 없이도 사용할 수 있습니다</div>
         ${deferredInstall ? `<button class="m-row" onclick="doInstall()">📲 지금 앱 설치하기</button>` : ''}
-        <div class="m-sec">
+        <div class="m-sec" style="${ownerMode ? '' : 'display:none;'}">
           <div class="m-sec-title">🎶 내 CCM (${myCcms.length}곡)</div>
           <div class="m-btns">
             <button class="m-ok" onclick="openCcmEditor()">＋ 곡 추가</button>
@@ -1675,10 +1788,13 @@
           <div class="m-note">복원하면 현재 기기의 즐겨찾기/예배순서를 덮어씁니다.</div>
         </div>
         <div class="m-btns" style="margin-top:14px;"><button class="m-cancel" onclick="closeModal()">닫기</button></div>
-        <div class="ver-box" onclick="verTap()">
+        <div class="ver-box" onclick="verTap()"
+             ontouchstart="ownerPressStart()" ontouchend="ownerPressEnd()" ontouchcancel="ownerPressEnd()"
+             onmousedown="ownerPressStart()" onmouseup="ownerPressEnd()" onmouseleave="ownerPressEnd()">
           <div class="ver-main">${APP_NAME} <b>${APP_VERSION}</b></div>
           <div class="ver-sub">
-            빌드 ${APP_BUILD} · 찬송가 ${hymns.length}곡 · CCM ${ccmAll.length}곡<br>
+            빌드 ${APP_BUILD} · 찬송가 ${hymns.length}곡${ownerMode ? ` · CCM ${ccmAll.length}곡 · 영어 ${enAll.length}곡` : ''}<br>
+            ${ownerMode ? '<b style="color:var(--primary)">🔓 내 모드 ON</b> · ' : ''}
             <span id="verNet">${navigator.onLine ? '🟢 온라인' : '⚪ 오프라인'}</span>
             · <span id="verSw">${'serviceWorker' in navigator && navigator.serviceWorker.controller ? '오프라인 저장 사용중' : '오프라인 저장 꺼짐'}</span>
           </div>
@@ -1686,9 +1802,24 @@
       `);
       window._backupData = backupData;
     }
+    // 버전 영역을 1.2초 길게 누르면 내 모드(CCM·영어 탭) 켜고 끄기
+    let ownerPressTimer = null, ownerPressed = false;
+    function ownerPressStart() {
+      ownerPressed = false;
+      clearTimeout(ownerPressTimer);
+      ownerPressTimer = setTimeout(() => {
+        ownerPressed = true;
+        verTaps = 0;
+        if (navigator.vibrate) { try { navigator.vibrate(40); } catch (e) {} }
+        setOwnerMode(!ownerMode);
+      }, 1200);
+    }
+    function ownerPressEnd() { clearTimeout(ownerPressTimer); }
+
     // 버전 영역을 7번 누르면 저장된 오프라인 캐시를 비우고 최신 파일을 다시 받음
     let verTaps = 0, verTimer = null;
     function verTap() {
+      if (ownerPressed) { ownerPressed = false; return; }   // 길게 누른 직후의 클릭은 무시
       verTaps++;
       clearTimeout(verTimer);
       verTimer = setTimeout(() => { verTaps = 0; }, 1500);
@@ -1798,6 +1929,51 @@
     applyThemeColor();
 
     // ================== 탭 / 검색 이벤트 ==================
+    // 내 모드 상태에 맞춰 탭을 보이거나 숨긴다
+    function applyOwnerTabs() {
+      const show = ownerMode ? '' : 'none';
+      const c = $('tabCcm'), e = $('tabEn'), wrap = document.querySelector('.tabs');
+      if (c) c.style.display = show;
+      if (e) e.style.display = show;
+      if (wrap) wrap.classList.toggle('tabs-6', ownerMode);
+      if (!ownerMode && (view.tab === 'ccm' || view.tab === 'en')) view.tab = 'all';
+    }
+    function setOwnerMode(on) {
+      ownerMode = !!on;
+      localStorage.setItem('hymn_owner', ownerMode ? '1' : '0');
+      if (!ownerMode) {
+        ccms = []; ens = []; ccmTag = ''; enTag = '';
+        if (view.tab === 'ccm' || view.tab === 'en') view.tab = 'all';
+        rebuildIndex();
+        closeModal();
+        go({ screen: 'home', tab: 'all' }, true);
+        showToast('🔒 내 모드 꺼짐 — 교회 배포본과 같은 화면입니다');
+      } else {
+        showToast('🔓 내 모드 켜짐 — 곡을 불러오는 중…');
+        Promise.all([
+          fetch('ccm.json').then(r => (r.ok ? r.json() : [])).catch(() => []),
+          fetch('en.json').then(r => (r.ok ? r.json() : [])).catch(() => [])
+        ]).then(([c, e]) => {
+          ccms = (Array.isArray(c) ? c : []).map((x, i) => ({
+            id: x.id || ('ccm-' + String(i + 1).padStart(3, '0')),
+            title: x.title || '(제목 없음)', lyrics: x.lyrics || '',
+            tags: Array.isArray(x.tags) ? x.tags : [],
+            artist: x.artist || '', key: x.key || '', youtube: x.youtube || ''
+          }));
+          ens = (Array.isArray(e) ? e : []).map((x, i) => ({
+            id: x.id || ('en-' + String(i + 1).padStart(3, '0')),
+            title: x.title || '(no title)', lyrics: x.lyrics || '',
+            tags: Array.isArray(x.tags) ? x.tags : [],
+            artist: x.artist || '', key: x.key || '', youtube: x.youtube || '',
+            hymnNum: x.hymnNum || 0
+          }));
+          rebuildIndex();
+          closeModal();
+          applyView();
+          showToast(`🔓 내 모드 켜짐 — CCM ${ccmAll.length}곡 · 영어 ${enAll.length}곡`);
+        });
+      }
+    }
     function changeTab(tab) {
       if (view.screen === 'home' && view.tab === tab) return;
       pendingDelete = false;
@@ -1862,8 +2038,9 @@
         const n = currentHymn.num + dir;
         if (n >= 1 && n <= maxHymnNum) nx = findSong(n);
       } else {
-        const i = ccmAll.indexOf(currentHymn) + dir;
-        if (i >= 0 && i < ccmAll.length) nx = ccmAll[i];
+        const pool = currentHymn.book === 'en' ? enAll : ccmAll;
+        const i = pool.indexOf(currentHymn) + dir;
+        if (i >= 0 && i < pool.length) nx = pool[i];
       }
       if (!nx) { showToast(dir > 0 ? '마지막 곡입니다' : '처음 곡입니다'); return; }
       playlistCtx = null;

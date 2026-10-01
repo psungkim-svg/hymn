@@ -7,12 +7,13 @@
 //  2) 페이지 요청 판별을 경로 정규식 → request.mode === 'navigate' 로 변경
 //     (https://계정.github.io/저장소/ 처럼 /index.html 이 안 붙는 주소에서도 새 버전이 내려옴)
 //  3) 오프라인 시 네비게이션 요청은 index.html 캐시로 폴백
-const CACHE = 'hymnal-v7-2';
+const CACHE = 'hymnal-v7-3';
 const ASSETS = [
   './',
   './index.html',
   './hymns.json',
   './ccm.json',
+  './en.json',
   './manifest.webmanifest',
   './icon-192.png',
   './icon-512.png',
@@ -46,6 +47,7 @@ self.addEventListener('fetch', e => {
   const isPage = req.mode === 'navigate';                 // 주소창으로 앱을 여는 모든 경우
   const isData = url.pathname.endsWith('hymns.json') ||
                  url.pathname.endsWith('ccm.json') ||
+                 url.pathname.endsWith('en.json') ||
                  url.pathname.endsWith('index.html') ||
                  url.pathname.endsWith('manifest.webmanifest');
 
