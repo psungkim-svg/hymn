@@ -521,7 +521,7 @@
 
   <script>
     // ================== 앱 버전 ==================
-    const APP_VERSION = 'v7.6';
+    const APP_VERSION = 'v7.7';
     const APP_BUILD   = '2026-10-01';
     const APP_NAME    = 'SK새찬송가';
 
@@ -540,11 +540,20 @@
     // 켜는 법 ① 설정 맨 아래 버전 영역을 1.2초 길게 누르기  ② 주소 뒤에 ?full=1
     let ownerMode = localStorage.getItem('hymn_owner') === '1';
     (function () {
+      // 주소로 끄기만 평문 허용 (?full=0). 켜는 것은 암호어를 알아야 한다 (?full=암호어)
       const qp = new URLSearchParams(location.search).get('full');
-      if (qp === '1' || qp === '0') {
-        ownerMode = (qp === '1');
-        localStorage.setItem('hymn_owner', ownerMode ? '1' : '0');
-        history.replaceState(null, '', location.pathname + location.hash);
+      if (qp) {
+        const clean = () => history.replaceState(null, '', location.pathname + location.hash);
+        if (qp === '0') { ownerMode = false; localStorage.setItem('hymn_owner', '0'); clean(); }
+        else {
+          const n = qp.normalize('NFC').toLowerCase().replace(/\s/g, '');
+          let h = 5381;
+          for (let i = 0; i < n.length; i++) { h = ((h << 5) + h) ^ n.charCodeAt(i); h = h >>> 0; }
+          if (h.toString(16) === '8856465') {
+            ownerMode = true; localStorage.setItem('hymn_owner', '1');
+          }
+          clean();
+        }
       }
     })();
     let maxHymnNum = 645;
@@ -2021,7 +2030,7 @@
             탭: 찬송가 · 즐겨찾기 · 분류별 · 예배순서<br><br>
             <b>지워지는 것은 없습니다.</b> 즐겨찾기·예배순서·내가 추가한 CCM 모두 그대로 남아 있고,
             다시 켜면 즉시 돌아옵니다.<br><br>
-            다시 켜는 방법 → <b>검색창에 <code>내모드</code> 라고 입력</b>
+            다시 켜는 방법 → <b>검색창에 평소의 암호어를 입력</b>
           </div>
           <div class="m-btns">
             <button class="m-cancel" onclick="closeModal()">취소</button>
@@ -2081,20 +2090,45 @@
       else if (view.screen === 'category') renderCategory();
       else if (view.screen === 'playlist' || view.screen === 'customcat') renderPlaylistDetail(view.id);
     }
-    // 검색창에 '내모드' 를 입력하면 내 모드 켜기/끄기 창이 열린다 (내가 쓰는 비밀 암호어)
-    const OWNER_WORDS = ['내모드', '내 모드', '#내모드', 'mymode', '0000'];
+    // 검색창 암호어 — 단어를 코드에 적지 않고 '지문(해시)'만 둔다.
+    // 소스를 열어봐도 무슨 단어인지 알 수 없고, 입력값의 지문이 같을 때만 열린다.
+    const OWNER_KEY  = '84c24f410c3c55656d0c08fcb4406a531e8ad33fed10dde357427a6f8fed6b5f';
+    const OWNER_KEY2 = '8856465';          // crypto 를 못 쓰는 환경(http 등)용 예비 지문
+    const normWord = t => (t || '').normalize('NFC').toLowerCase().replace(/\s/g, '');
+    function quickFp(str) {                 // 예비 지문 계산
+      let h = 5381;
+      for (let i = 0; i < str.length; i++) { h = ((h << 5) + h) ^ str.charCodeAt(i); h = h >>> 0; }
+      return h.toString(16);
+    }
+    async function isOwnerWord(raw) {
+      const n = normWord(raw);
+      if (n.length < 2 || n.length > 16) return false;
+      try {
+        if (window.crypto && crypto.subtle) {
+          const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(n));
+          const hex = [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, '0')).join('');
+          return hex === OWNER_KEY;
+        }
+      } catch (e) { /* 아래 예비 방식으로 */ }
+      return quickFp(n) === OWNER_KEY2;
+    }
+    let ownerWordBusy = false;
     function checkOwnerWord() {
-      const raw = $('searchInput').value.trim().toLowerCase();
-      if (!OWNER_WORDS.includes(raw)) return false;
-      $('searchInput').value = '';
-      $('searchInput').blur();
-      runSearchRender();
-      askOwnerMode(!ownerMode);
-      return true;
+      const raw = $('searchInput').value.trim();
+      if (ownerWordBusy || raw.length < 2 || raw.length > 16 || /^\d+$/.test(raw)) return;
+      ownerWordBusy = true;
+      isOwnerWord(raw).then(ok => {
+        ownerWordBusy = false;
+        if (!ok) return;
+        $('searchInput').value = '';
+        $('searchInput').blur();
+        runSearchRender();
+        askOwnerMode(!ownerMode);
+      }).catch(() => { ownerWordBusy = false; });
     }
 
     $('searchInput').addEventListener('input', () => {
-      if (checkOwnerWord()) return;
+      checkOwnerWord();
       if (view.screen === 'home' && (view.tab === 'cat' || view.tab === 'list')) {
         const q = $('searchInput').value.trim();
         if (q) { go({ screen: 'home', tab: 'all' }, true); return; }
