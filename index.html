@@ -521,8 +521,8 @@
 
   <script>
     // ================== 앱 버전 ==================
-    const APP_VERSION = 'v7.7';
-    const APP_BUILD   = '2026-10-01';
+    const APP_VERSION = 'v7.8';
+    const APP_BUILD   = '2026-10-20';
     const APP_NAME    = 'SK새찬송가';
 
     let hymns = [];            // 찬송가 645장
@@ -740,6 +740,21 @@
       }
     }
 
+    // 검색 결과 정렬: ① 제목이 검색어로 시작  ② 제목에 포함  ③ 가사에만 포함
+    function sortByRelevance(arr, q) {
+      if (!q || isChosungQuery(q)) return arr;
+      const qs = squash(q);
+      const rank = h => {
+        const t = h._ts || squash((h.title || '').toLowerCase());
+        if (t.startsWith(qs)) return 0;
+        if (t.includes(qs)) return 1;
+        return 2;
+      };
+      return arr.map((h, i) => [rank(h), i, h])
+                .sort((a, b) => a[0] - b[0] || a[1] - b[1])
+                .map(x => x[2]);
+    }
+
     // 검색어에서 띄어쓰기·문장부호 제거
     const squash = t => (t || '').replace(/[\s.,!?'"~\-·()]/g, '');
     function matchQ(h, q) {
@@ -904,6 +919,7 @@
       }
 
       if (/^\d+$/.test(q)) arr.sort((a, b) => (String(b.num) === q) - (String(a.num) === q) || (a.num || 0) - (b.num || 0));
+      else arr = sortByRelevance(arr, q);
       renderHymnRows(list, arr, q);
     }
 
@@ -942,7 +958,7 @@
         list.appendChild(row);
       }
 
-      const arr = ccmAll.filter(c => (!ccmTag || (c.tags || []).includes(ccmTag)) && matchQ(c, q));
+      const arr = sortByRelevance(ccmAll.filter(c => (!ccmTag || (c.tags || []).includes(ccmTag)) && matchQ(c, q)), q);
       renderHymnRows(list, arr, q);
     }
 
@@ -972,7 +988,7 @@
         tags.forEach(t => row.appendChild(mk(t, t)));
         list.appendChild(row);
       }
-      const arr = enAll.filter(c => (!enTag || (c.tags || []).includes(enTag)) && matchQ(c, q));
+      const arr = sortByRelevance(enAll.filter(c => (!enTag || (c.tags || []).includes(enTag)) && matchQ(c, q)), q);
       renderHymnRows(list, arr, q);
     }
 
@@ -2030,7 +2046,7 @@
             탭: 찬송가 · 즐겨찾기 · 분류별 · 예배순서<br><br>
             <b>지워지는 것은 없습니다.</b> 즐겨찾기·예배순서·내가 추가한 CCM 모두 그대로 남아 있고,
             다시 켜면 즉시 돌아옵니다.<br><br>
-            다시 켜는 방법 → <b>검색창에 평소의 암호어를 입력</b>
+            다시 켜는 방법 → <b>검색창에 평소의 암호어를 입력하고 Enter(검색/완료)</b>
           </div>
           <div class="m-btns">
             <button class="m-cancel" onclick="closeModal()">취소</button>
@@ -2112,6 +2128,10 @@
       } catch (e) { /* 아래 예비 방식으로 */ }
       return quickFp(n) === OWNER_KEY2;
     }
+    // ⚠️ 글자를 칠 때마다 검사하면 안 된다.
+    //   한글은 조합 중간 글자가 그대로 입력란에 들어가기 때문에
+    //   '내 모든' 을 치는 도중 '내 모드' 단계를 반드시 지나간다 → 암호어로 오인됨.
+    //   그래서 Enter(검색/완료)를 눌렀을 때, 그것도 한글 조합이 끝난 뒤에만 검사한다.
     let ownerWordBusy = false;
     function checkOwnerWord() {
       const raw = $('searchInput').value.trim();
@@ -2128,7 +2148,6 @@
     }
 
     $('searchInput').addEventListener('input', () => {
-      checkOwnerWord();
       if (view.screen === 'home' && (view.tab === 'cat' || view.tab === 'list')) {
         const q = $('searchInput').value.trim();
         if (q) { go({ screen: 'home', tab: 'all' }, true); return; }
@@ -2140,14 +2159,17 @@
       else searchTimer = setTimeout(runSearchRender, 140);
     });
 
-    // 번호 입력 + Enter → 바로 열기
+    // 번호 입력 + Enter → 바로 열기 / 암호어 + Enter → 내 모드 창
     $('searchInput').addEventListener('keydown', e => {
       if (e.key !== 'Enter') return;
+      if (e.isComposing || e.keyCode === 229) return;   // 한글 조합이 끝나지 않았으면 무시
       const q = $('searchInput').value.trim();
       if (/^\d{1,3}$/.test(q)) {
         const h = findSong(parseInt(q, 10));
         if (h) { $('searchInput').blur(); openHymn(h.num); }
+        return;
       }
+      checkOwnerWord();      // 암호어일 때만 반응하고, 아니면 아무 일도 없음
     });
 
     // Esc → 뒤로가기 (프로젝터/뷰어)
