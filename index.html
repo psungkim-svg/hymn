@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <title>SK새찬송가</title>
+  <title>SK- 새찬송가앱</title>
   <!-- PWA -->
   <link rel="manifest" href="manifest.webmanifest">
   <meta name="theme-color" content="#2563eb" id="themeColorMeta">
@@ -23,7 +23,7 @@
   <link rel="apple-touch-icon" href="apple-touch-icon.png">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <meta name="apple-mobile-web-app-title" content="SK새찬송가">
+  <meta name="apple-mobile-web-app-title" content="SK- 새찬송가앱">
   <style>
     :root {
       --bg: #ffffff;
@@ -203,27 +203,23 @@
       padding-left: env(safe-area-inset-left); padding-right: env(safe-area-inset-right);
     }
     .viewer-header {
-      padding: calc(12px + env(safe-area-inset-top)) 16px 12px; border-bottom: 1px solid var(--border);
-      display: flex; justify-content: space-between; align-items: center; gap: 6px;
+      padding: calc(10px + env(safe-area-inset-top)) 16px 10px; border-bottom: 1px solid var(--border);
+      display: flex; flex-direction: column; gap: 2px;
     }
+    .vh-top { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
     .viewer-title {
-      flex: 1; min-width: 0; font-weight: 700; line-height: 1.25; cursor: pointer;
-      overflow: hidden; word-break: keep-all;
+      width: 100%; font-weight: 700; line-height: 1.3; cursor: pointer;
+      white-space: nowrap; overflow: hidden;      /* 항상 한 줄 */
     }
-    .viewer-title .vt-num {
-      display: block; color: var(--primary); font-weight: 800; font-size: 0.82em;
-    }
-    .viewer-title .vt-name {
-      display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
-    }
+    .vt-num { color: var(--primary); font-weight: 800; font-size: 16px; white-space: nowrap; }
     /* 제목을 누르면 목록으로 돌아간다는 작은 신호 */
     .viewer-title:active { opacity: .55; }
     .font-btns button.v-ico {
-      font-size: 23px; line-height: 1; padding: 5px 10px; border: 0; background: none;
+      font-size: 19px; line-height: 1; padding: 3px 7px; border: 0; background: none;
     }
     /* 맨 오른쪽 작은 뒤로가기 */
     .font-btns button.v-back {
-      font-size: 15px; font-weight: 700; padding: 7px 10px; border-radius: 7px;
+      font-size: 13px; font-weight: 700; padding: 5px 9px; border-radius: 7px;
       border: 1px solid var(--primary); background: var(--primary); color: #ffffff;
       white-space: nowrap; line-height: 1.1;
     }
@@ -515,13 +511,16 @@
   <!-- 가사 뷰어 -->
   <div id="viewer">
     <div class="viewer-header">
-      <div class="viewer-title" id="viewerTitle" onclick="safeBack()" title="눌러서 목록으로"></div>
-      <div class="font-btns">
-        <button id="btnEditCcm" style="display:none;" onclick="openCcmEditor(keyOf(currentHymn))">✏️</button>
-        <button class="v-ico" onclick="addToPlaylistModal()" title="예배순서에 담기">＋</button>
-        <button class="v-ico" id="viewerStar" onclick="toggleFavCurrent()" title="즐겨찾기">★</button>
-        <button class="v-back" onclick="safeBack()" title="이전 화면으로">‹ 뒤로</button>
+      <div class="vh-top">
+        <div class="vt-num" id="viewerNum"></div>
+        <div class="font-btns">
+          <button id="btnEditCcm" style="display:none;" onclick="openCcmEditor(keyOf(currentHymn))">✏️</button>
+          <button class="v-ico" onclick="addToPlaylistModal()" title="예배순서에 담기">＋</button>
+          <button class="v-ico" id="viewerStar" onclick="toggleFavCurrent()" title="즐겨찾기">★</button>
+          <button class="v-back" onclick="safeBack()" title="이전 화면으로">‹ 뒤로</button>
+        </div>
       </div>
+      <div class="viewer-title" id="viewerTitle" onclick="safeBack()" title="눌러서 목록으로"></div>
     </div>
     <div id="nextBar" class="next-bar" style="display:none;" onclick="openNextInList()"></div>
     <div class="viewer-lyrics" id="viewerLyrics"></div>
@@ -553,9 +552,9 @@
 
   <script>
     // ================== 앱 버전 ==================
-    const APP_VERSION = 'v8.1';
+    const APP_VERSION = 'v8.2';
     const APP_BUILD   = '2026-11-19';
-    const APP_NAME    = 'SK새찬송가';
+    const APP_NAME    = 'SK- 새찬송가앱';
 
     let hymns = [];            // 찬송가 645장
     let ccms = [];             // ccm.json (파일로 올린 CCM)
@@ -1574,10 +1573,9 @@
 
     function showViewer(h) {
       currentHymn = h;
-      // 윗줄 = 몇 장(또는 CCM/ENG), 아랫줄 = 제목
-      const head = h.book === 'hymn' ? h.num + '장' : (h.book === 'en' ? 'ENG' : 'CCM');
-      $('viewerTitle').innerHTML = `<span class="vt-num">${head}</span><span class="vt-name">${esc(h.title)}</span>`;
-      $('viewerTitle').style.fontSize = fontSize + 'px';
+      // 윗줄 = 몇 장(또는 CCM/ENG) + 버튼들, 아랫줄 = 제목 한 줄
+      $('viewerNum').textContent = h.book === 'hymn' ? h.num + '장' : (h.book === 'en' ? 'ENG' : 'CCM');
+      $('viewerTitle').textContent = h.title;
       const lyricsBox = $('viewerLyrics');
       lyricsBox.innerHTML = renderLyrics(h.lyrics || '');
       lyricsBox.style.fontSize = fontSize + 'px';
@@ -1585,6 +1583,23 @@
       updateViewerStar();
       updateNextBar();
       $('viewer').style.display = 'flex';
+      fitTitle();                      // 화면에 그려진 뒤에 폭을 재야 정확하다
+    }
+
+    // 제목이 한 줄에 다 들어가도록 글자 크기를 자동으로 줄인다 (최대 = 가사 크기)
+    function fitTitle() {
+      const el = $('viewerTitle');
+      if (!el || el.clientWidth === 0) return;   // 화면에 안 보이면 계산 안 함
+      let size = fontSize;
+      el.style.fontSize = size + 'px';
+      // 화면 폭을 넘으면 들어갈 때까지 1px 씩 줄임 (최소 13px)
+      let guard = 0;
+      while (el.scrollWidth > el.clientWidth && size > 13 && guard++ < 40) {
+        size -= 1;
+        el.style.fontSize = size + 'px';
+      }
+      // 그래도 넘치면 letter-spacing 을 살짝 좁힌다
+      el.style.letterSpacing = (el.scrollWidth > el.clientWidth) ? '-0.8px' : '';
     }
 
     function updateNextBar() {
@@ -2131,7 +2146,7 @@
     function setFontSize(val) {
       fontSize = Math.min(Math.max(17, parseInt(val, 10) || 22), 48);
       $('viewerLyrics').style.fontSize = fontSize + 'px';
-      const vt = $('viewerTitle'); if (vt) vt.style.fontSize = fontSize + 'px';
+      if ($('viewer').style.display !== 'none') fitTitle();
       localStorage.setItem('hymn_size', fontSize);
       const r = $('sizeRange'), v = $('sizeVal'), p = $('sizePrev');
       if (r) r.value = fontSize;
@@ -2501,6 +2516,7 @@
     document.addEventListener('visibilitychange', () => {
       if (document.visibilityState === 'visible') checkForUpdate(true);
     });
+    window.addEventListener('resize', () => { if ($('viewer').style.display !== 'none') fitTitle(); });
     window.addEventListener('focus', () => checkForUpdate(true));
     window.addEventListener('online', () => checkForUpdate(true));
   </script>
