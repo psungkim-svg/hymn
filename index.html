@@ -206,12 +206,14 @@
       padding: calc(10px + env(safe-area-inset-top)) 16px 0;
       display: flex; flex-direction: column; gap: 2px;
     }
-    /* 제목 바로 밑 얇은 선 — 좌우 화면 끝까지 */
+    /* 제목 바로 밑 선 — 좌우 화면 끝까지, 눈에 보이는 진하기로 */
     .vh-line {
-      height: 1px; background: var(--border); margin: 7px -16px 0;
+      flex: none; height: 2px; min-height: 2px; background: #9ca3af;
+      margin: 8px -16px 0;
       margin-left: calc(-16px - env(safe-area-inset-left));
       margin-right: calc(-16px - env(safe-area-inset-right));
     }
+    .dark-mode .vh-line { background: #6b7280; }
     .vh-top { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
     .viewer-title {
       width: 100%; font-weight: 700; line-height: 1.3; cursor: pointer;
@@ -561,7 +563,7 @@
 
   <script>
     // ================== 앱 버전 ==================
-    const APP_VERSION = 'v8.4';
+    const APP_VERSION = 'v8.5';
     const APP_BUILD   = '2026-11-19';
     const APP_NAME    = 'SK- 새찬송가앱';
 
