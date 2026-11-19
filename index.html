@@ -211,7 +211,9 @@
       width: 100%; font-weight: 700; line-height: 1.3; cursor: pointer;
       white-space: nowrap; overflow: hidden;      /* 항상 한 줄 */
     }
-    .vt-num { color: var(--primary); font-weight: 800; font-size: 16px; white-space: nowrap; }
+    /* 장수: 제목과 같은 크기, 밝은 파랑 */
+    .vt-num { color: #3b82f6; font-weight: 800; white-space: nowrap; line-height: 1.3; }
+    .dark-mode .vt-num { color: #93c5fd; }
     /* 제목을 누르면 목록으로 돌아간다는 작은 신호 */
     .viewer-title:active { opacity: .55; }
     .font-btns button.v-ico {
@@ -552,7 +554,7 @@
 
   <script>
     // ================== 앱 버전 ==================
-    const APP_VERSION = 'v8.2';
+    const APP_VERSION = 'v8.3';
     const APP_BUILD   = '2026-11-19';
     const APP_NAME    = 'SK- 새찬송가앱';
 
@@ -1600,6 +1602,9 @@
       }
       // 그래도 넘치면 letter-spacing 을 살짝 좁힌다
       el.style.letterSpacing = (el.scrollWidth > el.clientWidth) ? '-0.8px' : '';
+      // 윗줄 장수도 제목과 똑같은 크기로 맞춘다
+      const n = $('viewerNum');
+      if (n) n.style.fontSize = size + 'px';
     }
 
     function updateNextBar() {
