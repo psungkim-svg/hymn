@@ -1,5 +1,5 @@
 {
-  "version": "v7.9",
-  "build": "2026-11-17",
+  "version": "v8.0",
+  "build": "2026-11-19",
   "note": "이 파일의 version 값이 앱의 APP_VERSION 과 다르면 앱이 '새 버전' 알림을 띄웁니다."
 }

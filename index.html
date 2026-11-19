@@ -216,6 +216,12 @@
     .font-btns button.v-ico {
       font-size: 23px; line-height: 1; padding: 5px 10px; border: 0; background: none;
     }
+    /* 맨 오른쪽 작은 뒤로가기 */
+    .font-btns button.v-back {
+      font-size: 12.5px; font-weight: 700; padding: 6px 8px; border-radius: 7px;
+      border: 1px solid var(--border); background: var(--card-bg); color: var(--sub-text);
+      white-space: nowrap; line-height: 1.1;
+    }
     .font-btns { display: flex; gap: 5px; }
     .font-btns button {
       padding: 6px 9px; border: 1px solid var(--border); background: var(--card-bg);
@@ -241,13 +247,13 @@
     .next-bar span { flex: 1; font-size: 14px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
     .viewer-lyrics {
       flex: 1; padding: 24px 20px calc(24px + env(safe-area-inset-bottom)); overflow-y: auto; white-space: pre-wrap;
-      line-height: 1.5; font-weight: 600; user-select: text; -webkit-user-select: text;
+      line-height: var(--lh, 1.5); font-weight: 600; user-select: text; -webkit-user-select: text;
       /* 확대해도 글자가 화면 밖으로 안 나가고 자동으로 줄바꿈되어 정렬됨 */
       word-break: keep-all; overflow-wrap: break-word; hyphens: none;
       touch-action: pan-y; -webkit-text-size-adjust: 100%;
     }
     /* 절과 절 사이를 확실히 구분 (첫 줄 제외) */
-    .viewer-lyrics .vs:not(:first-child) { margin-top: 1.2em; }
+    .viewer-lyrics .vs:not(:first-child) { margin-top: var(--vgap, 1.2em); }
     /* 후렴 구간 색상: 일반모드 짙은 노랑 / 다크모드 노랑 */
     .viewer-lyrics .refrain { color: #b8860b; }
     .dark-mode .viewer-lyrics .refrain { color: #ffd60a; }
@@ -370,6 +376,14 @@
       font-size: 13.5px; color: var(--sub-text); line-height: 1.4; margin-top: 2px;
       overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
     }
+
+    /* 행간·절간격 미리보기 */
+    .size-prev2 {
+      padding: 10px 12px; background: var(--card-bg); border-radius: 8px; margin-top: 8px;
+      font-weight: 600; line-height: var(--lh, 1.5); white-space: pre-wrap;
+    }
+    .size-prev2 .pv2 { margin-top: var(--vgap, 1.2em); color: #b8860b; }
+    .dark-mode .size-prev2 .pv2 { color: #ffd60a; }
 
     /* ＋ 곡 추가 목록 */
     .add-list { max-height: 46vh; overflow-y: auto; border: 1px solid var(--border); border-radius: 10px; }
@@ -496,11 +510,12 @@
   <!-- 가사 뷰어 -->
   <div id="viewer">
     <div class="viewer-header">
-      <div class="viewer-title" id="viewerTitle" onclick="history.back()" title="눌러서 목록으로"></div>
+      <div class="viewer-title" id="viewerTitle" onclick="safeBack()" title="눌러서 목록으로"></div>
       <div class="font-btns">
         <button id="btnEditCcm" style="display:none;" onclick="openCcmEditor(keyOf(currentHymn))">✏️</button>
         <button class="v-ico" onclick="addToPlaylistModal()" title="예배순서에 담기">＋</button>
         <button class="v-ico" id="viewerStar" onclick="toggleFavCurrent()" title="즐겨찾기">★</button>
+        <button class="v-back" onclick="safeBack()" title="이전 화면으로">‹ 뒤로</button>
       </div>
     </div>
     <div id="nextBar" class="next-bar" style="display:none;" onclick="openNextInList()"></div>
@@ -533,8 +548,8 @@
 
   <script>
     // ================== 앱 버전 ==================
-    const APP_VERSION = 'v7.9';
-    const APP_BUILD   = '2026-11-17';
+    const APP_VERSION = 'v8.0';
+    const APP_BUILD   = '2026-11-19';
     const APP_NAME    = 'SK새찬송가';
 
     let hymns = [];            // 찬송가 645장
@@ -585,6 +600,10 @@
       if (i >= 0) { arr.splice(i, 1); if (!arr.length) delete catExtras[key]; saveCatExtras(); return false; }
       arr.push(num); saveCatExtras(); return true;
     }
+    let lineH    = parseFloat(localStorage.getItem('hymn_lineh') || '1.5');          // 줄 간격(행간)
+    let verseGap = parseFloat(localStorage.getItem('hymn_gap')   || '1.2');          // 절과 절 사이 간격(em)
+    document.documentElement.style.setProperty('--lh', lineH);
+    document.documentElement.style.setProperty('--vgap', verseGap + 'em');
     let projScale = parseInt(localStorage.getItem('hymn_proj_size') || '100', 10);   // 프로젝터 전용 글자 크기(%)
     let favSort = localStorage.getItem('hymn_fav_sort') || 'custom';                 // 'custom' | 'num'
     let favEdit = false;                                                             // 즐겨찾기 정렬 모드
@@ -655,14 +674,25 @@
     // ================== 화면 이동 (스마트폰 뒤로가기 연동) ==================
     history.replaceState(view, '');
     window.addEventListener('popstate', e => {
+      if (navDepth > 0) navDepth--;
       view = (e.state && e.state.screen) ? e.state : { screen: 'home', tab: 'all' };
       applyView();
     });
 
+    // 앱 안에서 쌓인 방문 기록 수 — 0이면 뒤로 갈 곳이 없다는 뜻
+    let navDepth = 0;
+    // '뒤로' 버튼: 앱이 꺼지지 않고 반드시 이전 화면(없으면 목록)으로 간다
+    function safeBack() {
+      if (navDepth > 0) { history.back(); return; }
+      const tab = (view.tab === 'ccm' || view.tab === 'en' || view.tab === 'fav' ||
+                   view.tab === 'cat' || view.tab === 'list') ? view.tab : 'all';
+      go({ screen: 'home', tab }, true);
+    }
+
     function go(v, replace) {
       view = v;
       if (replace) history.replaceState(v, '');
-      else history.pushState(v, '');
+      else { history.pushState(v, ''); navDepth++; }
       applyView();
     }
 
@@ -1923,7 +1953,7 @@
         app: 'hymnal-backup', ver: 1,
         favs: favorites, lists: playlists, cats: customCats, extras: catExtras, recent: recents,
         myccm: myCcms,
-        size: fontSize, projSize: projScale, favSort: favSort,
+        size: fontSize, projSize: projScale, favSort: favSort, lineh: lineH, gap: verseGap,
         dark: document.documentElement.classList.contains('dark-mode') ? 1 : 0
       }, null, 1);
       openModal(`
@@ -1955,6 +1985,24 @@
           </div>
           <div class="size-hint" style="font-size:12.5px;color:var(--sub-text);margin:2px 0 8px;">가사 화면에서 두 손가락으로 벌리면 바로 커집니다</div>
           <div class="size-prev" id="sizePrev" style="font-size:${fontSize}px;">주 사랑 안에 우리 함께</div>
+          <div class="m-sec-title" style="margin-top:14px;">📏 줄 간격 (행간)</div>
+          <div class="size-row">
+            <span style="font-size:13px;">좁게</span>
+            <input type="range" id="lhRange" min="1.1" max="2.4" step="0.05" value="${lineH}" oninput="setLineH(this.value)">
+            <span style="font-size:13px;">넓게</span>
+            <span class="size-val" id="lhVal">${lineH.toFixed(2)}</span>
+          </div>
+          <div class="m-sec-title" style="margin-top:14px;">↕️ 절과 절 사이 간격</div>
+          <div class="size-row">
+            <span style="font-size:13px;">붙게</span>
+            <input type="range" id="gapRange" min="0" max="3" step="0.1" value="${verseGap}" oninput="setVerseGap(this.value)">
+            <span style="font-size:13px;">넓게</span>
+            <span class="size-val" id="gapVal">${verseGap.toFixed(1)}</span>
+          </div>
+          <div class="size-prev2" id="gapPrev" style="font-size:${Math.min(fontSize,20)}px;">
+            <div class="pv1">(1) 주 예수 내 맘에 들어와<br>계신 후 변하여 새 사람 되고</div>
+            <div class="pv2">(후렴) 주 예수 내 맘에 오심</div>
+          </div>
           <div class="m-sec-title" style="margin-top:14px;">📽️ 프로젝터 글자 크기</div>
           <div class="size-row">
             <span style="font-size:13px;">가</span>
@@ -2045,6 +2093,8 @@
         if (Array.isArray(d.myccm)) { myCcms = d.myccm; saveMyCcms(); }
         if (d.size) { fontSize = d.size; localStorage.setItem('hymn_size', d.size); }
         if (d.projSize) localStorage.setItem('hymn_proj_size', d.projSize);
+        if (d.lineh) localStorage.setItem('hymn_lineh', d.lineh);
+        if (d.gap !== undefined) localStorage.setItem('hymn_gap', d.gap);
         if (d.favSort) localStorage.setItem('hymn_fav_sort', d.favSort);
         if (typeof d.dark === 'number') localStorage.setItem('hymn_dark', d.dark);
         showToast('✅ 복원 완료');
@@ -2080,6 +2130,18 @@
       if (r) r.value = fontSize;
       if (v) v.textContent = fontSize + 'px';
       if (p) p.style.fontSize = fontSize + 'px';
+    }
+    function setLineH(val) {
+      lineH = Math.min(Math.max(1.1, parseFloat(val) || 1.5), 2.4);
+      localStorage.setItem('hymn_lineh', lineH);
+      document.documentElement.style.setProperty('--lh', lineH);
+      const v = $('lhVal'); if (v) v.textContent = lineH.toFixed(2);
+    }
+    function setVerseGap(val) {
+      verseGap = Math.min(Math.max(0, parseFloat(val) || 1.2), 3);
+      localStorage.setItem('hymn_gap', verseGap);
+      document.documentElement.style.setProperty('--vgap', verseGap + 'em');
+      const v = $('gapVal'); if (v) v.textContent = verseGap.toFixed(1);
     }
     function setProjSize(val) {
       projScale = Math.min(Math.max(60, parseInt(val, 10) || 100), 220);
