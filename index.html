@@ -203,8 +203,14 @@
       padding-left: env(safe-area-inset-left); padding-right: env(safe-area-inset-right);
     }
     .viewer-header {
-      padding: calc(10px + env(safe-area-inset-top)) 16px 10px; border-bottom: 1px solid var(--border);
+      padding: calc(10px + env(safe-area-inset-top)) 16px 0;
       display: flex; flex-direction: column; gap: 2px;
+    }
+    /* 제목 바로 밑 얇은 선 — 좌우 화면 끝까지 */
+    .vh-line {
+      height: 1px; background: var(--border); margin: 7px -16px 0;
+      margin-left: calc(-16px - env(safe-area-inset-left));
+      margin-right: calc(-16px - env(safe-area-inset-right));
     }
     .vh-top { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
     .viewer-title {
@@ -523,6 +529,7 @@
         </div>
       </div>
       <div class="viewer-title" id="viewerTitle" onclick="safeBack()" title="눌러서 목록으로"></div>
+      <div class="vh-line"></div>
     </div>
     <div id="nextBar" class="next-bar" style="display:none;" onclick="openNextInList()"></div>
     <div class="viewer-lyrics" id="viewerLyrics"></div>
@@ -554,7 +561,7 @@
 
   <script>
     // ================== 앱 버전 ==================
-    const APP_VERSION = 'v8.3';
+    const APP_VERSION = 'v8.4';
     const APP_BUILD   = '2026-11-19';
     const APP_NAME    = 'SK- 새찬송가앱';
 
