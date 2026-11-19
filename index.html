@@ -209,12 +209,13 @@
     /* 제목 바로 밑 선 — 좌우 화면 끝까지, 눈에 보이는 진하기로 */
     .vh-line {
       flex: none; height: 2px; min-height: 2px; background: #9ca3af;
-      margin: 8px -16px 0;
+      margin: 4px -16px 0;
       margin-left: calc(-16px - env(safe-area-inset-left));
       margin-right: calc(-16px - env(safe-area-inset-right));
     }
     .dark-mode .vh-line { background: #6b7280; }
-    .vh-top { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+    .vh-top { display: flex; align-items: center; justify-content: space-between; gap: 6px; cursor: pointer; }
+    .vh-top .vt-num:active { opacity: .55; }
     .viewer-title {
       width: 100%; font-weight: 700; line-height: 1.3; cursor: pointer;
       white-space: nowrap; overflow: hidden;      /* 항상 한 줄 */
@@ -257,12 +258,16 @@
     .next-bar b { color: var(--primary); }
     .next-bar span { flex: 1; font-size: 14px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
     .viewer-lyrics {
-      flex: 1; padding: 24px 20px calc(24px + env(safe-area-inset-bottom)); overflow-y: auto; white-space: pre-wrap;
+      flex: 1; padding: 12px 20px calc(24px + env(safe-area-inset-bottom)); overflow-y: auto; white-space: pre-wrap;
       line-height: var(--lh, 1.5); font-weight: 600; user-select: text; -webkit-user-select: text;
       /* 확대해도 글자가 화면 밖으로 안 나가고 자동으로 줄바꿈되어 정렬됨 */
       word-break: keep-all; overflow-wrap: break-word; hyphens: none;
       touch-action: pan-y; -webkit-text-size-adjust: 100%;
     }
+    /* 첫 줄 위에 생기는 '줄 간격의 절반'을 상쇄 →
+       줄 간격을 넓히거나 좁혀도 라인과 1절 사이 공간은 항상 그대로 */
+    .viewer-lyrics > div:first-child { margin-top: calc((1 - var(--lh, 1.5)) * 0.5em); }
+
     /* 절과 절 사이를 확실히 구분 (첫 줄 제외) */
     .viewer-lyrics .vs:not(:first-child) { margin-top: var(--vgap, 1.2em); }
     /* 후렴 구간 색상: 일반모드 짙은 노랑 / 다크모드 노랑 */
@@ -521,7 +526,7 @@
   <!-- 가사 뷰어 -->
   <div id="viewer">
     <div class="viewer-header">
-      <div class="vh-top">
+      <div class="vh-top" onclick="vhTopTap(event)">
         <div class="vt-num" id="viewerNum"></div>
         <div class="font-btns">
           <button id="btnEditCcm" style="display:none;" onclick="openCcmEditor(keyOf(currentHymn))">✏️</button>
@@ -563,7 +568,7 @@
 
   <script>
     // ================== 앱 버전 ==================
-    const APP_VERSION = 'v8.5';
+    const APP_VERSION = 'v8.6';
     const APP_BUILD   = '2026-11-19';
     const APP_NAME    = 'SK- 새찬송가앱';
 
@@ -1595,6 +1600,13 @@
       updateNextBar();
       $('viewer').style.display = 'flex';
       fitTitle();                      // 화면에 그려진 뒤에 폭을 재야 정확하다
+    }
+
+    // 장수 줄(장 번호 + 그 옆 빈 공간)을 누르면 번호 키패드가 뜬다.
+    // 오른쪽 ＋ ★ 뒤로 버튼을 누른 경우는 제외한다.
+    function vhTopTap(e) {
+      if (e.target.closest('.font-btns')) return;
+      openKeypad();
     }
 
     // 제목이 한 줄에 다 들어가도록 글자 크기를 자동으로 줄인다 (최대 = 가사 크기)
