@@ -264,6 +264,19 @@
       word-break: keep-all; overflow-wrap: break-word; hyphens: none;
       touch-action: pan-y; -webkit-text-size-adjust: 100%;
     }
+    /* 가사 끝에 붙는 분류 태그 (양 끝이 둥근 막대) */
+    .cat-tags {
+      display: flex; flex-wrap: wrap; gap: 8px;
+      margin-top: 22px; padding-top: 2px; line-height: 1.2;
+    }
+    .cat-tag {
+      display: inline-block; padding: 7px 15px; border-radius: 999px;
+      background: var(--primary); color: #ffffff;
+      font-size: 14px; font-weight: 700; white-space: nowrap;
+      border: 0; cursor: pointer; letter-spacing: -0.3px;
+    }
+    .cat-tag:active { opacity: .7; }
+
     /* 첫 줄 위에 생기는 '줄 간격의 절반'을 상쇄 →
        줄 간격을 넓히거나 좁혀도 라인과 1절 사이 공간은 항상 그대로 */
     .viewer-lyrics > div:first-child { margin-top: calc((1 - var(--lh, 1.5)) * 0.5em); }
@@ -516,7 +529,7 @@
     <div class="tab" id="tabFav" onclick="changeTab('fav')">즐겨찾기</div>
     <div class="tab" id="tabCcm" style="display:none;" onclick="changeTab('ccm')">CCM</div>
     <div class="tab" id="tabEn" style="display:none;" onclick="changeTab('en')">영어</div>
-    <div class="tab" id="tabCat" onclick="changeTab('cat')">분류별</div>
+    <div class="tab" id="tabCat" onclick="changeTab('cat')">분류</div>
     <div class="tab" id="tabList" onclick="changeTab('list')">예배순서</div>
   </div>
 
@@ -568,8 +581,8 @@
 
   <script>
     // ================== 앱 버전 ==================
-    const APP_VERSION = 'v8.6';
-    const APP_BUILD   = '2026-11-19';
+    const APP_VERSION = 'v8.7';
+    const APP_BUILD   = '2026-11-23';
     const APP_NAME    = 'SK- 새찬송가앱';
 
     let hymns = [];            // 찬송가 645장
@@ -655,6 +668,18 @@
     ];
 
     const $ = id => document.getElementById(id);
+
+    // 새찬송가 공식 주제별 분류에서 그 곡의 분류를 찾는다 (분류 탭과 완전히 같은 데이터)
+    // 반환: [{ci, si, name}]  — 대분류 1개 + 소분류 1개(있을 때만)
+    function catTagsOf(num) {
+      const ci = CATEGORIES.findIndex(c => num >= c.from && num <= c.to);
+      if (ci < 0) return [];
+      const c = CATEGORIES[ci];
+      const out = [{ ci, si: -1, name: c.name }];
+      const si = c.subs.findIndex(sb => num >= sb[1] && num <= sb[2]);
+      if (si >= 0) out.push({ ci, si, name: c.subs[si][0] });
+      return out;
+    }
 
     // ================== 곡 공통 처리 (찬송가 + CCM) ==================
     // 찬송가는 번호(숫자), CCM은 문자열 id를 "키"로 쓴다
@@ -1186,74 +1211,7 @@
         list.appendChild(div);
       });
 
-      // 🎵 영어 찬송 태그별
-      if (enAll.length) {
-        const eh = document.createElement('div');
-        eh.className = 'cat-header';
-        eh.innerHTML = `<div class="cat-cur"><b>🎵 English</b><span>태그별로 보기 · ${enAll.length}곡</span></div>`;
-        list.appendChild(eh);
-        allEnTags().forEach(t => {
-          const n = enAll.filter(c => (c.tags || []).includes(t)).length;
-          const div = document.createElement('div');
-          div.className = 'cat-card';
-          div.innerHTML = `
-            <div class="cat-icon">🎵</div>
-            <div class="cat-name">${esc(t)}</div>
-            <div class="cat-range">${n}곡</div>
-            <div class="cat-arrow">›</div>`;
-          div.onclick = () => go({ screen: 'entag', tab: 'cat', tag: t });
-          list.appendChild(div);
-        });
-      }
-
-      // 🎶 CCM 태그별
-      if (ccmAll.length) {
-        const ch = document.createElement('div');
-        ch.className = 'cat-header';
-        ch.innerHTML = `<div class="cat-cur"><b>🎶 CCM</b><span>태그별로 보기 · ${ccmAll.length}곡</span></div>`;
-        list.appendChild(ch);
-        allCcmTags().forEach(t => {
-          const n = ccmAll.filter(c => (c.tags || []).includes(t)).length;
-          const div = document.createElement('div');
-          div.className = 'cat-card';
-          div.innerHTML = `
-            <div class="cat-icon">🎶</div>
-            <div class="cat-name">${esc(t)}</div>
-            <div class="cat-range">${n}곡</div>
-            <div class="cat-arrow">›</div>`;
-          div.onclick = () => go({ screen: 'ccmtag', tab: 'cat', tag: t });
-          list.appendChild(div);
-        });
-      }
-
-      // ✏️ 내 분류 (사용자가 직접 만드는 분류 — 기존 분류와 겹쳐도 자유롭게)
-      const head = document.createElement('div');
-      head.className = 'cat-header';
-      head.innerHTML = `<div class="cat-cur"><b>✏️ 내 분류</b><span>내가 만든 분류</span></div>`;
-      list.appendChild(head);
-      const add = document.createElement('div');
-      add.className = 'pl-actions';
-      add.innerHTML = `<button class="primary" onclick="promptNew('cat')">＋ 새 분류 만들기</button>`;
-      list.appendChild(add);
-      if (customCats.length === 0) {
-        const empty = document.createElement('div');
-        empty.style.cssText = 'text-align:center; padding: 18px 20px; color: var(--sub-text); font-size: 14px;';
-        empty.innerText = '원하는 곡끼리 묶어 나만의 분류를 만들 수 있어요 (기존 분류와 겹쳐도 됨)';
-        list.appendChild(empty);
-        return;
-      }
-      customCats.forEach(p => {
-        const div = document.createElement('div');
-        div.className = 'cat-card';
-        div.innerHTML = `
-          <div class="cat-icon">✏️</div>
-          <div class="cat-name">${esc(p.name)}</div>
-          <div class="cat-range">${p.nums.length}곡</div>
-          <div class="cat-arrow">›</div>
-        `;
-        div.onclick = () => go({ screen: 'customcat', tab: 'cat', id: p.id });
-        list.appendChild(div);
-      });
+      // (CCM·영어 분류는 각자의 탭에서 보도록 분류 탭에서는 제외함)
     }
 
     // ================== 분류 상세 ==================
@@ -1593,7 +1551,7 @@
       $('viewerNum').textContent = h.book === 'hymn' ? h.num + '장' : (h.book === 'en' ? 'ENG' : 'CCM');
       $('viewerTitle').textContent = h.title;
       const lyricsBox = $('viewerLyrics');
-      lyricsBox.innerHTML = renderLyrics(h.lyrics || '');
+      lyricsBox.innerHTML = renderLyrics(h.lyrics || '') + catTagHtml(h);
       lyricsBox.style.fontSize = fontSize + 'px';
       $('btnEditCcm').style.display = h.mine ? '' : 'none';
       updateViewerStar();
@@ -1661,6 +1619,20 @@
         if (inRef) cls += ' refrain';
         return `<div class="${cls}">${esc(line)}</div>`;
       }).join('');
+    }
+
+    // 가사 맨 아래에 붙일 분류 태그 (찬송가만)
+    function catTagHtml(h) {
+      if (!h || h.book !== 'hymn') return '';
+      const tags = catTagsOf(h.num);
+      if (!tags.length) return '';
+      return '<div class="cat-tags">' + tags.map(t =>
+        `<button class="cat-tag" onclick="goCatTag(event,${t.ci},${t.si})">${esc(t.name)}</button>`
+      ).join('') + '</div>';
+    }
+    function goCatTag(e, ci, si) {
+      e.stopPropagation();
+      go({ screen: 'category', tab: 'cat', cat: ci, sub: si });
     }
 
     // ================== 프로젝터 모드 ==================
@@ -2417,6 +2389,7 @@
     let lastTapT = 0, lastTapX = 0, lastTapY = 0;
     $('viewerLyrics').addEventListener('click', e => {
       if (pinching) return;
+      if (e.target.closest('.cat-tag')) return;   // 분류 태그를 누른 경우는 제외
       const now = Date.now();
       const dx = Math.abs(e.clientX - lastTapX), dy = Math.abs(e.clientY - lastTapY);
       if (now - lastTapT < 400 && dx < 40 && dy < 40) {
