@@ -264,6 +264,13 @@
       word-break: keep-all; overflow-wrap: break-word; hyphens: none;
       touch-action: pan-y; -webkit-text-size-adjust: 100%;
     }
+    /* 분류 탭의 묶음 머리글 */
+    .cat-group {
+      padding: 16px 4px 7px; font-size: 13px; font-weight: 800;
+      color: var(--muted); letter-spacing: 0.5px;
+    }
+    .cat-group:first-child { padding-top: 6px; }
+
     /* 가사 끝에 붙는 분류 태그 (양 끝이 둥근 막대) */
     .cat-tags {
       display: flex; flex-wrap: wrap; gap: 8px;
@@ -581,7 +588,7 @@
 
   <script>
     // ================== 앱 버전 ==================
-    const APP_VERSION = 'v8.7';
+    const APP_VERSION = 'v9.0';
     const APP_BUILD   = '2026-11-23';
     const APP_NAME    = 'SK- 새찬송가앱';
 
@@ -668,6 +675,31 @@
     ];
 
     const $ = id => document.getElementById(id);
+
+    // ===== 주제 분류 (categories.json) =====
+    // THEMES: [{group, name, icon}]   THEME_SONGS: {태그이름: [장번호...]}   SONG_TAGS: {장번호: [태그...]}
+    let THEMES = [], THEME_SONGS = {}, SONG_TAGS = {}, THEME_GROUPS = [];
+
+    function setupThemes(cat) {
+      if (!cat || !Array.isArray(cat.themes)) return;   // 파일이 없으면 분류 탭은 예전 방식으로 동작
+      THEMES = cat.themes;
+      SONG_TAGS = cat.tags || {};
+      THEME_SONGS = {};
+      THEMES.forEach(t => { THEME_SONGS[t.name] = []; });
+      Object.keys(SONG_TAGS).forEach(num => {
+        (SONG_TAGS[num] || []).forEach(name => {
+          if (THEME_SONGS[name]) THEME_SONGS[name].push(+num);
+        });
+      });
+      Object.keys(THEME_SONGS).forEach(k => THEME_SONGS[k].sort((a, b) => a - b));
+      THEME_GROUPS = [];
+      THEMES.forEach((t, i) => {
+        let g = THEME_GROUPS.find(x => x.name === t.group);
+        if (!g) { g = { name: t.group, items: [] }; THEME_GROUPS.push(g); }
+        g.items.push(i);
+      });
+    }
+    const themeIndex = name => THEMES.findIndex(t => t.name === name);
 
     // 새찬송가 공식 주제별 분류에서 그 곡의 분류를 찾는다 (분류 탭과 완전히 같은 데이터)
     // 반환: [{ci, si, name}]  — 대분류 1개 + 소분류 1개(있을 때만)
@@ -780,9 +812,11 @@
     Promise.all([
       fetch('hymns.json').then(r => r.json()),
       loadExtra('ccm.json'),
-      loadExtra('en.json')
-    ]).then(([h, c, e]) => {
+      loadExtra('en.json'),
+      fetch('categories.json').then(r => (r.ok ? r.json() : null)).catch(() => null)
+    ]).then(([h, c, e, cat]) => {
       hymns = h;
+      setupThemes(cat);
       ccms = (Array.isArray(c) ? c : []).map((x, i) => ({
         id: x.id || ('ccm-' + String(i + 1).padStart(3, '0')),
         title: x.title || '(제목 없음)',
@@ -1195,27 +1229,82 @@
     }
 
     function renderCatMenu(list) {
+      if (!THEMES.length) { renderCatMenuOld(list); return; }
+      THEME_GROUPS.forEach(g => {
+        const head = document.createElement('div');
+        head.className = 'cat-group';
+        head.textContent = g.name;
+        list.appendChild(head);
+        g.items.forEach(i => {
+          const t = THEMES[i];
+          const base = (THEME_SONGS[t.name] || []).length;
+          const e = (catExtras[catKeyOf(i, -1)] || []).length;
+          const div = document.createElement('div');
+          div.className = 'cat-card';
+          div.innerHTML = `
+            <div class="cat-icon">${t.icon || '🎵'}</div>
+            <div class="cat-name">${esc(t.name)}</div>
+            <div class="cat-range">${base}곡${e ? ` <b style="color:var(--primary)">＋${e}</b>` : ''}</div>
+            <div class="cat-arrow">\u203a</div>
+          `;
+          div.onclick = () => go({ screen: 'category', tab: 'cat', cat: i, sub: -1 });
+          list.appendChild(div);
+        });
+      });
+    }
+
+    // categories.json 을 못 읽었을 때 쓰는 예전 방식
+    function renderCatMenuOld(list) {
       CATEGORIES.forEach((c, i) => {
         const n = hymns.filter(h => h.num >= c.from && h.num <= c.to).length;
-        let e = (catExtras[catKeyOf(i, -1)] || []).length;
-        c.subs.forEach((sb, si) => { e += (catExtras[catKeyOf(i, si)] || []).length; });
         const div = document.createElement('div');
         div.className = 'cat-card';
         div.innerHTML = `
           <div class="cat-icon">${c.icon}</div>
           <div class="cat-name">${c.name}</div>
-          <div class="cat-range">${c.from}–${c.to}장 · ${n}곡${e ? ` <b style="color:var(--primary)">＋${e}</b>` : ''}</div>
-          <div class="cat-arrow">›</div>
+          <div class="cat-range">${c.from}\u2013${c.to}장 \u00b7 ${n}곡</div>
+          <div class="cat-arrow">\u203a</div>
         `;
         div.onclick = () => go({ screen: 'category', tab: 'cat', cat: i, sub: -1 });
         list.appendChild(div);
       });
-
-      // (CCM·영어 분류는 각자의 탭에서 보도록 분류 탭에서는 제외함)
     }
 
     // ================== 분류 상세 ==================
     function renderCategory() {
+      if (THEMES.length) { renderThemeCategory(); return; }
+      renderCategoryOld();
+    }
+
+    // 주제 태그 하나를 눌렀을 때의 곡 목록
+    function renderThemeCategory() {
+      const list = $('hymnList');
+      const q = $('searchInput').value.trim().toLowerCase();
+      list.innerHTML = '';
+      const t = THEMES[view.cat];
+      if (!t) { go({ screen: 'home', tab: 'cat' }, true); return; }
+
+      const bar = document.createElement('div');
+      bar.className = 'cat-header';
+      bar.innerHTML = `
+        <button class="cat-back" onclick="history.back()">\u2039 분류 목록</button>
+        <div class="cat-cur"><b>${t.icon || ''} ${esc(t.name)}</b><span>${t.group}</span></div>
+      `;
+      list.appendChild(bar);
+
+      const addBtn = document.createElement('div');
+      addBtn.className = 'pl-actions';
+      addBtn.innerHTML = `<button class="primary" onclick="openCatPicker()">\uff0b 이 분류에 곡 추가</button>`;
+      list.appendChild(addBtn);
+
+      const base = new Set(THEME_SONGS[t.name] || []);
+      const exSet = new Set((catExtras[catKeyOf(view.cat, -1)] || []).filter(n => !base.has(n)));
+      const arr = hymns.filter(h => (base.has(h.num) || exSet.has(h.num)) && matchQ(h, q))
+                       .sort((a, b) => a.num - b.num);
+      renderHymnRows(list, arr, q, exSet);
+    }
+
+    function renderCategoryOld() {
       const list = $('hymnList');
       const q = $('searchInput').value.trim().toLowerCase();
       list.innerHTML = '';
@@ -1259,8 +1348,13 @@
 
     // ================== 공식 분류에 곡 추가/빼기 ==================
     function openCatPicker() {
-      const c = CATEGORIES[view.cat];
-      const nm = view.sub >= 0 ? c.subs[view.sub][0] : c.name;
+      let nm;
+      if (THEMES.length) {
+        nm = (THEMES[view.cat] || {}).name || '';
+      } else {
+        const c = CATEGORIES[view.cat];
+        nm = view.sub >= 0 ? c.subs[view.sub][0] : c.name;
+      }
       openModal(`
         <h3>📂 ${esc(nm)}에 곡 추가</h3>
         <input type="text" id="pickerQ" placeholder="번호 또는 제목 입력 (예: 182, 은혜)" oninput="renderPickerRows()" autocomplete="off">
@@ -1272,30 +1366,38 @@
       const q = $('pickerQ').value.trim().toLowerCase();
       const box = $('pickerList');
       if (!q) { box.innerHTML = '<div class="m-note">번호나 제목을 입력하면 곡이 나타납니다.</div>'; return; }
-      const c = CATEGORIES[view.cat];
-      const from = view.sub >= 0 ? c.subs[view.sub][1] : c.from;
-      const to   = view.sub >= 0 ? c.subs[view.sub][2] : c.to;
-      const ex = catExtras[catKeyOf(view.cat, view.sub)] || [];
+      let inBase;
+      if (THEMES.length) {
+        const base = new Set(THEME_SONGS[(THEMES[view.cat] || {}).name] || []);
+        inBase = n => base.has(n);
+      } else {
+        const c = CATEGORIES[view.cat];
+        const from = view.sub >= 0 ? c.subs[view.sub][1] : c.from;
+        const to   = view.sub >= 0 ? c.subs[view.sub][2] : c.to;
+        inBase = n => n >= from && n <= to;
+      }
+      const ex = catExtras[catKeyOf(view.cat, THEMES.length ? -1 : view.sub)] || [];
       const res = hymns.filter(h => matchQ(h, q)).slice(0, 40);
       box.innerHTML = res.length ? '' : '<div class="m-note">검색 결과가 없습니다.</div>';
       res.forEach(h => {
         const b = document.createElement('button');
         b.className = 'm-row';
-        if (h.num >= from && h.num <= to) {
+        const sub = THEMES.length ? -1 : view.sub;
+        if (inBase(h.num)) {
           b.style.opacity = 0.45;
           b.innerHTML = `${h.num}장 ${esc(h.title)} <small>· 이미 이 분류에 있음</small>`;
         } else if (ex.includes(h.num)) {
           b.innerHTML = `✅ <b>${h.num}장</b> ${esc(h.title)} <small>· 추가됨 (눌러서 빼기)</small>`;
-          b.onclick = () => { toggleCatExtra(view.cat, view.sub, h.num); renderPickerRows(); renderCategory(); };
+          b.onclick = () => { toggleCatExtra(view.cat, sub, h.num); renderPickerRows(); renderCategory(); };
         } else {
           b.innerHTML = `＋ <b>${h.num}장</b> ${esc(h.title)}`;
-          b.onclick = () => { toggleCatExtra(view.cat, view.sub, h.num); renderPickerRows(); renderCategory(); };
+          b.onclick = () => { toggleCatExtra(view.cat, sub, h.num); renderPickerRows(); renderCategory(); };
         }
         box.appendChild(b);
       });
     }
     function removeCatExtra(num) {
-      toggleCatExtra(view.cat, view.sub, num);
+      toggleCatExtra(view.cat, THEMES.length ? -1 : view.sub, num);
       renderCategory();
       showToast(num + '장을 이 분류에서 뺐습니다');
     }
@@ -1624,15 +1726,20 @@
     // 가사 맨 아래에 붙일 분류 태그 (찬송가만)
     function catTagHtml(h) {
       if (!h || h.book !== 'hymn') return '';
-      const tags = catTagsOf(h.num);
-      if (!tags.length) return '';
-      return '<div class="cat-tags">' + tags.map(t =>
-        `<button class="cat-tag" onclick="goCatTag(event,${t.ci},${t.si})">${esc(t.name)}</button>`
-      ).join('') + '</div>';
+      let names = SONG_TAGS[h.num] || [];
+      if (!names.length) {                       // categories.json 이 없을 때의 대비책
+        names = catTagsOf(h.num).map(t => t.name);
+      }
+      if (!names.length) return '';
+      return '<div class="cat-tags">' + names.map(nm => {
+        const ti = themeIndex(nm);
+        return `<button class="cat-tag" onclick="goCatTag(event,${ti})">${esc(nm)}</button>`;
+      }).join('') + '</div>';
     }
-    function goCatTag(e, ci, si) {
+    function goCatTag(e, ti) {
       e.stopPropagation();
-      go({ screen: 'category', tab: 'cat', cat: ci, sub: si });
+      if (ti < 0) return;
+      go({ screen: 'category', tab: 'cat', cat: ti, sub: -1 });
     }
 
     // ================== 프로젝터 모드 ==================
