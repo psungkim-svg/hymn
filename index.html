@@ -264,12 +264,24 @@
       word-break: keep-all; overflow-wrap: break-word; hyphens: none;
       touch-action: pan-y; -webkit-text-size-adjust: 100%;
     }
-    /* 분류 탭의 묶음 머리글 */
+    /* 분류 탭의 묶음 머리글 — 큰 분류 7개 */
     .cat-group {
-      padding: 16px 4px 7px; font-size: 13px; font-weight: 800;
-      color: var(--muted); letter-spacing: 0.5px;
+      display: flex; align-items: center; gap: 10px;
+      padding: 22px 2px 10px;
+      font-size: 20px; font-weight: 800;
+      color: var(--primary); letter-spacing: -0.3px;
     }
-    .cat-group:first-child { padding-top: 6px; }
+    .cat-group::before {
+      content: ''; flex: none; width: 5px; height: 20px;
+      border-radius: 3px; background: var(--primary);
+    }
+    .cat-group::after {
+      content: ''; flex: 1; height: 2px; border-radius: 2px;
+      background: var(--border);
+    }
+    .cat-group:first-child { padding-top: 8px; }
+    .dark-mode .cat-group { color: #93c5fd; }
+    .dark-mode .cat-group::before { background: #93c5fd; }
 
     /* 가사 끝에 붙는 분류 태그 (양 끝이 둥근 막대) */
     .cat-tags {
@@ -588,7 +600,7 @@
 
   <script>
     // ================== 앱 버전 ==================
-    const APP_VERSION = 'v9.0';
+    const APP_VERSION = 'v9.1';
     const APP_BUILD   = '2026-11-23';
     const APP_NAME    = 'SK- 새찬송가앱';
 
