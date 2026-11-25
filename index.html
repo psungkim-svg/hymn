@@ -418,8 +418,16 @@
     .m-sec { border-top: 1px solid var(--border); margin-top: 14px; padding-top: 14px; }
     .m-sec-title { font-size: 14px; font-weight: bold; margin-bottom: 10px; }
 
+    /* 가사 고치기 창만 화면 좌우를 넓게 쓴다 */
+    .modal.modal-wide { max-width: 680px; padding: 20px 22px; }
+    #modalWrap.wrap-wide { padding: 10px; }
+
     /* 가사 고치기 전용 — 글씨 크게 */
-    .modal textarea#edLyrics { font-size: 20px !important; line-height: 1.7; }
+    .modal textarea#edLyrics {
+      font-size: 20px !important; line-height: 1.7;
+      padding: 14px 16px; min-height: 42vh;
+    }
+    .modal input#edTitle { padding: 12px 16px; }
     .modal input#edTitle { font-size: 20px; font-weight: 600; }
     .ed-size { display: flex; align-items: center; gap: 8px; margin: 2px 0 8px; }
     .ed-size button {
@@ -611,7 +619,7 @@
 
   <script>
     // ================== 앱 버전 ==================
-    const APP_VERSION = 'v9.7';
+    const APP_VERSION = 'v9.8';
     const APP_BUILD   = '2026-11-25';
     const APP_NAME    = 'SK- 새찬송가앱';
 
@@ -1806,7 +1814,7 @@
           <button class="m-ok" onclick="saveLyricsEdit()">\uc800\uc7a5</button>
           <button class="m-cancel" onclick="closeModal()">\ucde8\uc18c</button>
         </div>
-      `);
+      `, true);
       applyEdFont();
     }
     function edFontSet(d) {
@@ -2039,8 +2047,19 @@
     }
 
     // ================== 모달 ==================
-    function openModal(html) { $('modalBox').innerHTML = html; $('modalWrap').style.display = 'flex'; }
-    function closeModal() { $('modalWrap').style.display = 'none'; }
+    function openModal(html, wide) {
+      const box = $('modalBox'), wrap = $('modalWrap');
+      box.innerHTML = html;
+      box.classList.toggle('modal-wide', !!wide);
+      wrap.classList.toggle('wrap-wide', !!wide);
+      wrap.style.display = 'flex';
+    }
+    function closeModal() {
+      const box = $('modalBox'), wrap = $('modalWrap');
+      box.classList.remove('modal-wide');
+      wrap.classList.remove('wrap-wide');
+      wrap.style.display = 'none';
+    }
 
     let _modalCb = null;
     function promptModal(title, placeholder, cb, value) {
