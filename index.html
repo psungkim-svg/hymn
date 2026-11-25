@@ -418,6 +418,16 @@
     .m-sec { border-top: 1px solid var(--border); margin-top: 14px; padding-top: 14px; }
     .m-sec-title { font-size: 14px; font-weight: bold; margin-bottom: 10px; }
 
+    /* 가사 고치기 전용 — 글씨 크게 */
+    .modal textarea#edLyrics { font-size: 20px !important; line-height: 1.7; }
+    .modal input#edTitle { font-size: 20px; font-weight: 600; }
+    .ed-size { display: flex; align-items: center; gap: 8px; margin: 2px 0 8px; }
+    .ed-size button {
+      border: 1px solid var(--border); background: var(--card-bg); color: var(--text);
+      border-radius: 8px; padding: 6px 14px; font-size: 18px; font-weight: 700; cursor: pointer;
+    }
+    .ed-size span { font-size: 14px; color: var(--sub-text); }
+
     /* 검색 결과 가사 스니펫 */
     .hymn-main { flex: 1; min-width: 0; }
     .hymn-snip {
@@ -601,7 +611,7 @@
 
   <script>
     // ================== 앱 버전 ==================
-    const APP_VERSION = 'v9.4';
+    const APP_VERSION = 'v9.7';
     const APP_BUILD   = '2026-11-25';
     const APP_NAME    = 'SK- 새찬송가앱';
 
@@ -632,7 +642,6 @@
       hymns.forEach(h => {
         const e = myEdits[String(h.num)];
         if (!e) return;
-        if (h._origTitle === undefined) { h._origTitle = h.title; h._origLyrics = h.lyrics; }
         if (e.t) h.title = e.t;
         if (e.l) h.lyrics = e.l;
       });
@@ -1776,56 +1785,55 @@
     }
 
     // ================== 가사 고치기 (내 모드 전용) ==================
+    let edFont = +(localStorage.getItem('hymn_edfont') || 20);
     function openLyricsEditor() {
       const h = currentHymn;
       if (!h || h.book !== 'hymn') return;
-      const k = String(h.num);
-      const edited = !!myEdits[k];
       openModal(`
         <h3>\u270f\ufe0f ${h.num}장 가사 고치기</h3>
-        <div class="m-note">\uc904\ubc14\uafc8\uc740 <b>\uc5d4\ud130</b>\ub85c \ub098\ub215\ub2c8\ub2e4. \uc808 \uc2dc\uc791\uc740 <code>(1) (2) (\ud6c4\ub834)</code> \ud615\uc2dd\uc744 \uc9c0\ucf1c \uc8fc\uc138\uc694.<br>
-          \uace0\uce5c \ub0b4\uc6a9\uc740 <b>\uc774 \ud3f0\uc5d0 \uc800\uc7a5</b>\ub418\uba70, \uc571\uc744 \uc5c5\ub370\uc774\ud2b8\ud574\ub3c4 \uadf8\ub300\ub85c \uc720\uc9c0\ub429\ub2c8\ub2e4.</div>
-        <div class="m-sec-title">\uc81c\ubaa9</div>
+        <div class="ed-size">
+          <button onclick="edFontSet(-2)">\uac00\u2212</button>
+          <button onclick="edFontSet(2)">\uac00\uff0b</button>
+          <span id="edFontLbl">${edFont}px</span>
+        </div>
+        <div class="m-sec-title">제목</div>
         <input type="text" id="edTitle" value="${esc(h.title)}" autocomplete="off">
-        <div class="m-sec-title">\uac00\uc0ac</div>
-        <textarea id="edLyrics" rows="14" style="font-size:15px; line-height:1.6;">${esc(h.lyrics || '')}</textarea>
+        <div class="m-sec-title">가사</div>
+        <textarea id="edLyrics" rows="13">${esc(h.lyrics || '')}</textarea>
+        <div class="m-note">\uc904\ubc14\uafc8\uc740 <b>\uc5d4\ud130</b>\ub85c \ub098\ub215\ub2c8\ub2e4. \uc808 \uc2dc\uc791\uc740 <code>(1) (2) (\ud6c4\ub834)</code> \ud615\uc2dd\uc744 \uc9c0\ucf1c \uc8fc\uc138\uc694.<br>
+          \uc800\uc7a5\ud558\uba74 <b>\uadf8\uac83\uc774 \uc774 \uc571\uc758 \uac00\uc0ac\uac00 \ub429\ub2c8\ub2e4.</b> \uc5c5\ub370\uc774\ud2b8\ud574\ub3c4 \uc720\uc9c0\ub429\ub2c8\ub2e4.</div>
         <div class="m-btns" style="margin-top:12px;">
           <button class="m-ok" onclick="saveLyricsEdit()">\uc800\uc7a5</button>
-          ${edited ? `<button class="m-cancel" onclick="revertLyricsEdit()">\uc6d0\ub798\ub300\ub85c</button>` : ''}
           <button class="m-cancel" onclick="closeModal()">\ucde8\uc18c</button>
         </div>
       `);
+      applyEdFont();
+    }
+    function edFontSet(d) {
+      edFont = Math.max(14, Math.min(34, edFont + d));
+      localStorage.setItem('hymn_edfont', edFont);
+      applyEdFont();
+    }
+    function applyEdFont() {
+      const a = $('edLyrics'), b = $('edTitle'), l = $('edFontLbl');
+      if (a) a.style.setProperty('font-size', edFont + 'px', 'important');
+      if (b) b.style.setProperty('font-size', edFont + 'px', 'important');
+      if (l) l.textContent = edFont + 'px';
     }
 
     function saveLyricsEdit() {
       const h = currentHymn; if (!h) return;
-      const k = String(h.num);
       const t = $('edTitle').value.trim();
       const l = $('edLyrics').value.replace(/\r/g, '').replace(/[ \t]+$/gm, '').trim();
       if (!l) { showToast('가사가 비어 있습니다'); return; }
-      if (h._origTitle === undefined) { h._origTitle = h.title; h._origLyrics = h.lyrics; }
-      if (t === h._origTitle && l === h._origLyrics) {       // 원본과 같아지면 기록을 지운다
-        delete myEdits[k];
-      } else {
-        myEdits[k] = { t: t, l: l, d: new Date().toISOString().slice(0, 10) };
-      }
+      // 고친 것이 곧 이 앱의 가사가 된다 (원본을 따로 남기지 않음)
+      myEdits[String(h.num)] = { t: t, l: l, d: new Date().toISOString().slice(0, 10) };
       saveMyEdits();
       h.title = t; h.lyrics = l;
       rebuildIndex();
       closeModal();
       showViewer(h);
       showToast('\u2705 저장했습니다 (고친 곡 ' + Object.keys(myEdits).length + '곡)');
-    }
-
-    function revertLyricsEdit() {
-      const h = currentHymn; if (!h) return;
-      delete myEdits[String(h.num)];
-      saveMyEdits();
-      if (h._origTitle !== undefined) { h.title = h._origTitle; h.lyrics = h._origLyrics; }
-      rebuildIndex();
-      closeModal();
-      showViewer(h);
-      showToast('\u21a9\ufe0f 원래 가사로 되돌렸습니다');
     }
 
     // 고친 가사 목록 / 내보내기
