@@ -562,6 +562,7 @@
         <div class="vt-num" id="viewerNum"></div>
         <div class="font-btns">
           <button id="btnEditCcm" style="display:none;" onclick="openCcmEditor(keyOf(currentHymn))">✏️</button>
+          <button class="v-ico" id="btnEditLyrics" style="display:none;" onclick="openLyricsEditor()" title="가사 고치기">✏️</button>
           <button class="v-ico" onclick="addToPlaylistModal()" title="예배순서에 담기">＋</button>
           <button class="v-ico" id="viewerStar" onclick="toggleFavCurrent()" title="즐겨찾기">★</button>
           <button class="v-back" onclick="safeBack()" title="이전 화면으로">‹ 뒤로</button>
@@ -600,8 +601,8 @@
 
   <script>
     // ================== 앱 버전 ==================
-    const APP_VERSION = 'v9.2';
-    const APP_BUILD   = '2026-11-23';
+    const APP_VERSION = 'v9.4';
+    const APP_BUILD   = '2026-11-25';
     const APP_NAME    = 'SK- 새찬송가앱';
 
     let hymns = [];            // 찬송가 645장
@@ -618,6 +619,24 @@
     // 교회 배포본과 같은 파일이지만, 내 모드를 켠 기기에서만 CCM·영어 탭이 보인다.
     // 켜는 법 ① 설정 맨 아래 버전 영역을 1.2초 길게 누르기  ② 주소 뒤에 ?full=1
     let ownerMode = localStorage.getItem('hymn_owner') === '1';
+
+    // ===== 내가 고친 가사 (폰에만 저장, 업데이트해도 지워지지 않음) =====
+    // 모양: { "590": {t:"제목", l:"가사", d:"2026-11-23"} }
+    let myEdits = {};
+    try { myEdits = JSON.parse(localStorage.getItem('hymn_edits') || '{}') || {}; } catch (e) { myEdits = {}; }
+    const saveMyEdits = () => localStorage.setItem('hymn_edits', JSON.stringify(myEdits));
+    const editKeyOf = h => (h.book === 'hymn' ? String(h.num) : h.id);
+
+    // 불러온 원본 위에 내가 고친 내용을 덮어쓴다
+    function applyMyEdits() {
+      hymns.forEach(h => {
+        const e = myEdits[String(h.num)];
+        if (!e) return;
+        if (h._origTitle === undefined) { h._origTitle = h.title; h._origLyrics = h.lyrics; }
+        if (e.t) h.title = e.t;
+        if (e.l) h.lyrics = e.l;
+      });
+    }
     (function () {
       // 주소로 끄기만 평문 허용 (?full=0). 켜는 것은 암호어를 알아야 한다 (?full=암호어)
       const qp = new URLSearchParams(location.search).get('full');
@@ -829,6 +848,7 @@
     ]).then(([h, c, e, cat]) => {
       hymns = h;
       setupThemes(cat);
+      applyMyEdits();
       ccms = (Array.isArray(c) ? c : []).map((x, i) => ({
         id: x.id || ('ccm-' + String(i + 1).padStart(3, '0')),
         title: x.title || '(제목 없음)',
@@ -1668,6 +1688,7 @@
       lyricsBox.innerHTML = renderLyrics(h.lyrics || '') + catTagHtml(h);
       lyricsBox.style.fontSize = fontSize + 'px';
       $('btnEditCcm').style.display = h.mine ? '' : 'none';
+      $('btnEditLyrics').style.display = (ownerMode && h.book === 'hymn') ? '' : 'none';
       updateViewerStar();
       updateNextBar();
       $('viewer').style.display = 'flex';
@@ -1752,6 +1773,101 @@
       e.stopPropagation();
       if (ti < 0) return;
       go({ screen: 'category', tab: 'cat', cat: ti, sub: -1 });
+    }
+
+    // ================== 가사 고치기 (내 모드 전용) ==================
+    function openLyricsEditor() {
+      const h = currentHymn;
+      if (!h || h.book !== 'hymn') return;
+      const k = String(h.num);
+      const edited = !!myEdits[k];
+      openModal(`
+        <h3>\u270f\ufe0f ${h.num}장 가사 고치기</h3>
+        <div class="m-note">\uc904\ubc14\uafc8\uc740 <b>\uc5d4\ud130</b>\ub85c \ub098\ub215\ub2c8\ub2e4. \uc808 \uc2dc\uc791\uc740 <code>(1) (2) (\ud6c4\ub834)</code> \ud615\uc2dd\uc744 \uc9c0\ucf1c \uc8fc\uc138\uc694.<br>
+          \uace0\uce5c \ub0b4\uc6a9\uc740 <b>\uc774 \ud3f0\uc5d0 \uc800\uc7a5</b>\ub418\uba70, \uc571\uc744 \uc5c5\ub370\uc774\ud2b8\ud574\ub3c4 \uadf8\ub300\ub85c \uc720\uc9c0\ub429\ub2c8\ub2e4.</div>
+        <div class="m-sec-title">\uc81c\ubaa9</div>
+        <input type="text" id="edTitle" value="${esc(h.title)}" autocomplete="off">
+        <div class="m-sec-title">\uac00\uc0ac</div>
+        <textarea id="edLyrics" rows="14" style="font-size:15px; line-height:1.6;">${esc(h.lyrics || '')}</textarea>
+        <div class="m-btns" style="margin-top:12px;">
+          <button class="m-ok" onclick="saveLyricsEdit()">\uc800\uc7a5</button>
+          ${edited ? `<button class="m-cancel" onclick="revertLyricsEdit()">\uc6d0\ub798\ub300\ub85c</button>` : ''}
+          <button class="m-cancel" onclick="closeModal()">\ucde8\uc18c</button>
+        </div>
+      `);
+    }
+
+    function saveLyricsEdit() {
+      const h = currentHymn; if (!h) return;
+      const k = String(h.num);
+      const t = $('edTitle').value.trim();
+      const l = $('edLyrics').value.replace(/\r/g, '').replace(/[ \t]+$/gm, '').trim();
+      if (!l) { showToast('가사가 비어 있습니다'); return; }
+      if (h._origTitle === undefined) { h._origTitle = h.title; h._origLyrics = h.lyrics; }
+      if (t === h._origTitle && l === h._origLyrics) {       // 원본과 같아지면 기록을 지운다
+        delete myEdits[k];
+      } else {
+        myEdits[k] = { t: t, l: l, d: new Date().toISOString().slice(0, 10) };
+      }
+      saveMyEdits();
+      h.title = t; h.lyrics = l;
+      rebuildIndex();
+      closeModal();
+      showViewer(h);
+      showToast('\u2705 저장했습니다 (고친 곡 ' + Object.keys(myEdits).length + '곡)');
+    }
+
+    function revertLyricsEdit() {
+      const h = currentHymn; if (!h) return;
+      delete myEdits[String(h.num)];
+      saveMyEdits();
+      if (h._origTitle !== undefined) { h.title = h._origTitle; h.lyrics = h._origLyrics; }
+      rebuildIndex();
+      closeModal();
+      showViewer(h);
+      showToast('\u21a9\ufe0f 원래 가사로 되돌렸습니다');
+    }
+
+    // 고친 가사 목록 / 내보내기
+    function openEditList() {
+      const ks = Object.keys(myEdits).sort((a, b) => a - b);
+      const rows = ks.length ? ks.map(k => {
+        const h = hymns.find(x => String(x.num) === k);
+        return `<button class="m-row" onclick="closeModal();openHymnByNum(${k})">
+          <b>${k}장</b> ${esc(h ? h.title : '')} <small>· ${myEdits[k].d}</small></button>`;
+      }).join('') : '<div class="m-note">아직 고친 가사가 없습니다.</div>';
+      openModal(`
+        <h3>\ud83d\udcdd 내가 고친 가사 (${ks.length}곡)</h3>
+        <div style="max-height:46vh; overflow-y:auto;">${rows}</div>
+        <div class="m-sec-title">\ub0b4\ubcf4\ub0b4\uae30</div>
+        <div class="m-note">\uc774 \ud30c\uc77c\uc744 \ubcf4\ub0b4\uc8fc\uc2dc\uba74 \ub2e4\uc74c \ubc84\uc804\ubd80\ud130 <b>\ubaa8\ub4e0 \uad50\uc778\uc5d0\uac8c</b> \ubc18\uc601\ub429\ub2c8\ub2e4.</div>
+        <div class="m-btns">
+          <button class="m-ok" onclick="downloadEdits()">\ud83d\udcbe 파일로 저장</button>
+          <button class="m-cancel" onclick="copyEdits()">\ud83d\udccb 복사</button>
+          <button class="m-cancel" onclick="closeModal()">닫기</button>
+        </div>
+      `);
+    }
+
+    function editsJson() {
+      return JSON.stringify({ app: 'hymnal-edits', ver: APP_VERSION, edits: myEdits }, null, 1);
+    }
+    function downloadEdits() {
+      const blob = new Blob([editsJson()], { type: 'application/json' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = '가사수정.json';
+      a.click();
+      URL.revokeObjectURL(a.href);
+      showToast('\ud83d\udcbe 가사수정.json 을 저장했습니다');
+    }
+    async function copyEdits() {
+      try { await navigator.clipboard.writeText(editsJson()); showToast('\ud83d\udccb 복사했습니다'); }
+      catch (e) { showToast('복사 실패 — 파일로 저장해 주세요'); }
+    }
+    function openHymnByNum(n) {
+      const h = hymns.find(x => x.num === +n);
+      if (h) go({ screen: 'viewer', tab: view.tab, num: keyOf(h) });
     }
 
     // ================== 프로젝터 모드 ==================
@@ -2092,6 +2208,7 @@
         app: 'hymnal-backup', ver: 1,
         favs: favorites, lists: playlists, cats: customCats, extras: catExtras, recent: recents,
         myccm: myCcms,
+        edits: myEdits,
         size: fontSize, projSize: projScale, favSort: favSort, lineh: lineH, gap: verseGap,
         dark: document.documentElement.classList.contains('dark-mode') ? 1 : 0
       }, null, 1);
@@ -2113,6 +2230,13 @@
             <button class="m-cancel" onclick="downloadMyCcm()">텍스트 저장</button>
           </div>
           <div class="m-note">앱에서 추가한 CCM을 <b>변환기 형식</b>으로 뽑습니다. 이 텍스트를 <code>ccm_원본.txt</code>에 붙여넣고 변환하면 모든 교인에게 배포됩니다.</div>
+        </div>
+        <div class="m-sec" style="${ownerMode ? '' : 'display:none;'}">
+          <div class="m-sec-title">📝 내가 고친 가사 (${Object.keys(myEdits).length}곡)</div>
+          <div class="m-btns">
+            <button class="m-ok" onclick="openEditList()">목록 보기 · 내보내기</button>
+          </div>
+          <div class="m-note">가사 화면의 <b>✏️</b> 를 눌러 줄바꿈이나 오타를 고칠 수 있습니다. 고친 내용은 <b>이 폰에 저장</b>되고 앱을 업데이트해도 유지됩니다. 내보낸 <code>가사수정.json</code> 을 보내주시면 다음 버전부터 모든 교인에게 반영됩니다.</div>
         </div>
         <div class="m-sec">
           <div class="m-sec-title">🔤 글자 크기</div>
@@ -2228,6 +2352,7 @@
         if (Array.isArray(d.lists)) { playlists = d.lists; saveLists(); }
         if (Array.isArray(d.cats)) { customCats = d.cats; saveCats(); }
         if (d.extras && typeof d.extras === 'object') { catExtras = d.extras; saveCatExtras(); }
+        if (d.edits && typeof d.edits === 'object') { myEdits = d.edits; saveMyEdits(); applyMyEdits(); rebuildIndex(); }
         if (Array.isArray(d.recent)) { recents = d.recent; localStorage.setItem('hymn_recent', JSON.stringify(recents)); }
         if (Array.isArray(d.myccm)) { myCcms = d.myccm; saveMyCcms(); }
         if (d.size) { fontSize = d.size; localStorage.setItem('hymn_size', d.size); }
