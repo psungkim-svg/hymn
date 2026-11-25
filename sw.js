@@ -2,13 +2,14 @@
 // html/데이터는 '네트워크 우선': 파일을 올리면 다음 실행 때 자동으로 새 버전이 반영됩니다.
 // (인터넷이 없으면 저장해 둔 복사본으로 보여 줍니다)
 //
+// v9.10 변경점: 앱 이름 SK-hymn, 아이콘 글자 확대, 편집창 확대, 설정 안내 글자 확대
 // v9.9 변경점: 아이콘에 "찬송" 텍스트 추가, 마스커블 아이콘 분리, 캐시 정리 범위 제한
 // v4 변경점
 //  1) addAll → 개별 add + allSettled : 파일 하나가 404여도 나머지는 정상 캐시됨
 //  2) 페이지 요청 판별을 경로 정규식 → request.mode === 'navigate' 로 변경
 //     (https://계정.github.io/저장소/ 처럼 /index.html 이 안 붙는 주소에서도 새 버전이 내려옴)
 //  3) 오프라인 시 네비게이션 요청은 index.html 캐시로 폴백
-const CACHE = 'hymnal-v9-9';
+const CACHE = 'hymnal-v9-10';
 const ASSETS = [
   './',
   './index.html',

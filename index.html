@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <title>SK- 새찬송가앱</title>
+  <title>SK-hymn</title>
   <!-- PWA -->
   <link rel="manifest" href="manifest.webmanifest">
   <meta name="theme-color" content="#2563eb" id="themeColorMeta">
@@ -23,7 +23,7 @@
   <link rel="apple-touch-icon" href="apple-touch-icon.png">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <meta name="apple-mobile-web-app-title" content="SK- 새찬송가앱">
+  <meta name="apple-mobile-web-app-title" content="SK-hymn">
   <style>
     :root {
       --bg: #ffffff;
@@ -226,8 +226,10 @@
     /* 제목을 누르면 목록으로 돌아간다는 작은 신호 */
     .viewer-title:active { opacity: .55; }
     .font-btns button.v-ico {
+      display: inline-flex; align-items: center; justify-content: center;
       font-size: 19px; line-height: 1; padding: 3px 7px; border: 0; background: none;
     }
+    .pen-ico { width: 17px; height: 17px; display: block; }
     /* 맨 오른쪽 작은 뒤로가기 */
     .font-btns button.v-back {
       font-size: 13px; font-weight: 700; padding: 5px 9px; border-radius: 7px;
@@ -414,20 +416,20 @@
     }
     .m-ok { background: var(--primary); color: #fff; }
     .m-cancel { background: var(--card-bg); color: var(--text); border: 1px solid var(--border) !important; }
-    .m-note { font-size: 12.5px; color: var(--sub-text); line-height: 1.55; margin: 10px 0; }
+    .m-note { font-size: 14px; color: var(--sub-text); line-height: 1.65; margin: 10px 0; }
     .m-sec { border-top: 1px solid var(--border); margin-top: 14px; padding-top: 14px; }
-    .m-sec-title { font-size: 14px; font-weight: bold; margin-bottom: 10px; }
+    .m-sec-title { font-size: 15.5px; font-weight: bold; margin-bottom: 10px; }
 
-    /* 가사 고치기 창만 화면 좌우를 넓게 쓴다 */
-    .modal.modal-wide { max-width: 680px; padding: 20px 22px; }
-    #modalWrap.wrap-wide { padding: 10px; }
+    /* 가사/CCM 편집 창은 화면을 최대한 넓게 사용한다 */
+    .modal.modal-wide { max-width: 780px; max-height: 92vh; padding: 18px 22px; }
+    #modalWrap.wrap-wide { padding: 8px; }
 
-    /* 가사 고치기 전용 — 글씨 크게 */
-    .modal textarea#edLyrics {
+    /* 편집창 가사 입력 영역 */
+    .modal textarea#edLyrics, .modal textarea#ccmLyrics {
       font-size: 20px !important; line-height: 1.7;
-      padding: 14px 16px; min-height: 42vh;
+      padding: 14px 16px; min-height: 55vh;
     }
-    .modal input#edTitle { padding: 12px 16px; }
+    .modal input#edTitle, .modal input#ccmTitle { padding: 12px 16px; }
     .modal input#edTitle { font-size: 20px; font-weight: 600; }
     .ed-size { display: flex; align-items: center; gap: 8px; margin: 2px 0 8px; }
     .ed-size button {
@@ -484,7 +486,7 @@
     /* 글자 크기 슬라이더 */
     .size-row { display: flex; align-items: center; gap: 10px; margin: 6px 0 2px; }
     .size-row input[type=range] { flex: 1; accent-color: var(--primary); }
-    .size-row .size-val { font-size: 13px; color: var(--sub-text); width: 44px; text-align: right; }
+    .size-row .size-val { font-size: 14.5px; color: var(--sub-text); width: 48px; text-align: right; }
     .size-prev { font-weight: 600; line-height: 1.5; padding: 10px 12px; background: var(--card-bg);
       border: 1px solid var(--border); border-radius: 9px; margin-top: 8px; }
 
@@ -538,7 +540,7 @@
     }
     .ver-main { font-size: 13px; color: var(--sub-text); }
     .ver-main b { color: var(--primary); }
-    .ver-sub { font-size: 11.5px; color: var(--sub-text); line-height: 1.6; margin-top: 3px; opacity: .85; }
+    .ver-sub { font-size: 13px; color: var(--sub-text); line-height: 1.6; margin-top: 3px; opacity: .9; }
 
     /* 토스트 */
     #toast {
@@ -579,8 +581,18 @@
       <div class="vh-top" onclick="vhTopTap(event)">
         <div class="vt-num" id="viewerNum"></div>
         <div class="font-btns">
-          <button id="btnEditCcm" style="display:none;" onclick="openCcmEditor(keyOf(currentHymn))">✏️</button>
-          <button class="v-ico" id="btnEditLyrics" style="display:none;" onclick="openLyricsEditor()" title="가사 고치기">✏️</button>
+          <button class="v-ico" id="btnEditCcm" style="display:none;" onclick="openCcmEditor(keyOf(currentHymn))" title="CCM 수정">
+            <svg class="pen-ico" viewBox="0 0 16 16" aria-hidden="true">
+            <path d="M4 12.4 L5.4 10.2 L10.3 5.3 L11.8 6.8 L6.9 11.7 Z" fill="currentColor"/>
+            <path d="M9.2 6.4 L10.6 7.8" stroke="var(--card-bg)" stroke-width="1" stroke-linecap="round"/>
+          </svg>
+          </button>
+          <button class="v-ico" id="btnEditLyrics" style="display:none;" onclick="openLyricsEditor()" title="가사 고치기">
+            <svg class="pen-ico" viewBox="0 0 16 16" aria-hidden="true">
+            <path d="M4 12.4 L5.4 10.2 L10.3 5.3 L11.8 6.8 L6.9 11.7 Z" fill="currentColor"/>
+            <path d="M9.2 6.4 L10.6 7.8" stroke="var(--card-bg)" stroke-width="1" stroke-linecap="round"/>
+          </svg>
+          </button>
           <button class="v-ico" onclick="addToPlaylistModal()" title="예배순서에 담기">＋</button>
           <button class="v-ico" id="viewerStar" onclick="toggleFavCurrent()" title="즐겨찾기">★</button>
           <button class="v-back" onclick="safeBack()" title="이전 화면으로">‹ 뒤로</button>
@@ -619,9 +631,9 @@
 
   <script>
     // ================== 앱 버전 ==================
-    const APP_VERSION = 'v9.9';
+    const APP_VERSION = 'v9.10';
     const APP_BUILD   = '2026-11-25';
-    const APP_NAME    = 'SK- 새찬송가앱';
+    const APP_NAME    = 'SK-hymn';
 
     let hymns = [];            // 찬송가 645장
     let ccms = [];             // ccm.json (파일로 올린 CCM)
@@ -1807,7 +1819,7 @@
         <div class="m-sec-title">제목</div>
         <input type="text" id="edTitle" value="${esc(h.title)}" autocomplete="off">
         <div class="m-sec-title">가사</div>
-        <textarea id="edLyrics" rows="13">${esc(h.lyrics || '')}</textarea>
+        <textarea id="edLyrics" rows="18">${esc(h.lyrics || '')}</textarea>
         <div class="m-note">\uc904\ubc14\uafc8\uc740 <b>\uc5d4\ud130</b>\ub85c \ub098\ub215\ub2c8\ub2e4. \uc808 \uc2dc\uc791\uc740 <code>(1) (2) (\ud6c4\ub834)</code> \ud615\uc2dd\uc744 \uc9c0\ucf1c \uc8fc\uc138\uc694.<br>
           \uc800\uc7a5\ud558\uba74 <b>\uadf8\uac83\uc774 \uc774 \uc571\uc758 \uac00\uc0ac\uac00 \ub429\ub2c8\ub2e4.</b> \uc5c5\ub370\uc774\ud2b8\ud574\ub3c4 \uc720\uc9c0\ub429\ub2c8\ub2e4.</div>
         <div class="m-btns" style="margin-top:12px;">
@@ -2091,7 +2103,7 @@
         <div class="m-sec-title">태그 (쉼표로 구분, 선택)</div>
         <input type="text" id="ccmTags" placeholder="예: 경배, 느린곡" value="${c ? esc((c.tags || []).join(', ')) : ''}" autocomplete="off">
         <div class="m-sec-title">가사</div>
-        <textarea id="ccmLyrics" rows="9" placeholder="(1) 첫째 절 가사&#10;(후렴) 후렴 가사&#10;(2) 둘째 절 가사">${c ? esc(c.lyrics) : ''}</textarea>
+        <textarea id="ccmLyrics" rows="16" placeholder="(1) 첫째 절 가사&#10;(후렴) 후렴 가사&#10;(2) 둘째 절 가사">${c ? esc(c.lyrics) : ''}</textarea>
         <div class="m-note">
           <b>(1) (2) (후렴)</b> 표기를 넣으면 프로젝터에서 한 절씩 넘어가고, 후렴은 색이 다르게 표시됩니다.
         </div>
@@ -2104,7 +2116,7 @@
           이 곡은 <b>내 폰에만</b> 저장됩니다. 교인 모두에게 배포하려면
           ⚙️ 설정 → <b>내 CCM 내보내기</b>로 텍스트를 뽑아 <code>ccm.json</code>에 반영하세요.
         </div>
-      `);
+      `, true);
       setTimeout(() => { const i = $('ccmTitle'); if (i) i.focus(); }, 60);
     }
 
@@ -2264,30 +2276,30 @@
           <div class="m-btns">
             <button class="m-ok" onclick="openEditList()">목록 보기 · 내보내기</button>
           </div>
-          <div class="m-note">가사 화면의 <b>✏️</b> 를 눌러 줄바꿈이나 오타를 고칠 수 있습니다. 고친 내용은 <b>이 폰에 저장</b>되고 앱을 업데이트해도 유지됩니다. 내보낸 <code>가사수정.json</code> 을 보내주시면 다음 버전부터 모든 교인에게 반영됩니다.</div>
+          <div class="m-note">가사 화면의 <b>연필 버튼</b>을 눌러 줄바꿈이나 오타를 고칠 수 있습니다. 고친 내용은 <b>이 폰에 저장</b>되고 앱을 업데이트해도 유지됩니다. 내보낸 <code>가사수정.json</code> 을 보내주시면 다음 버전부터 모든 교인에게 반영됩니다.</div>
         </div>
         <div class="m-sec">
           <div class="m-sec-title">🔤 글자 크기</div>
           <div class="size-row">
-            <span style="font-size:13px;">가</span>
+            <span style="font-size:14.5px;">가</span>
             <input type="range" id="sizeRange" min="17" max="48" step="1" value="${fontSize}" oninput="setFontSize(this.value)">
             <span style="font-size:22px;">가</span>
             <span class="size-val" id="sizeVal">${fontSize}px</span>
           </div>
-          <div class="size-hint" style="font-size:12.5px;color:var(--sub-text);margin:2px 0 8px;">가사 화면에서 두 손가락으로 벌리면 바로 커집니다</div>
+          <div class="size-hint" style="font-size:14px;color:var(--sub-text);margin:2px 0 8px;">가사 화면에서 두 손가락으로 벌리면 바로 커집니다</div>
           <div class="size-prev" id="sizePrev" style="font-size:${fontSize}px;">주 사랑 안에 우리 함께</div>
           <div class="m-sec-title" style="margin-top:14px;">📏 줄 간격 (행간)</div>
           <div class="size-row">
-            <span style="font-size:13px;">좁게</span>
+            <span style="font-size:14.5px;">좁게</span>
             <input type="range" id="lhRange" min="1.1" max="2.4" step="0.05" value="${lineH}" oninput="setLineH(this.value)">
-            <span style="font-size:13px;">넓게</span>
+            <span style="font-size:14.5px;">넓게</span>
             <span class="size-val" id="lhVal">${lineH.toFixed(2)}</span>
           </div>
           <div class="m-sec-title" style="margin-top:14px;">↕️ 절과 절 사이 간격</div>
           <div class="size-row">
-            <span style="font-size:13px;">붙게</span>
+            <span style="font-size:14.5px;">붙게</span>
             <input type="range" id="gapRange" min="0" max="3" step="0.1" value="${verseGap}" oninput="setVerseGap(this.value)">
-            <span style="font-size:13px;">넓게</span>
+            <span style="font-size:14.5px;">넓게</span>
             <span class="size-val" id="gapVal">${verseGap.toFixed(1)}</span>
           </div>
           <div class="size-prev2" id="gapPrev" style="font-size:${Math.min(fontSize,20)}px;">
@@ -2296,7 +2308,7 @@
           </div>
           <div class="m-sec-title" style="margin-top:14px;">📽️ 프로젝터 글자 크기</div>
           <div class="size-row">
-            <span style="font-size:13px;">가</span>
+            <span style="font-size:14.5px;">가</span>
             <input type="range" id="projRange" min="60" max="220" step="5" value="${projScale}" oninput="setProjSize(this.value)">
             <span style="font-size:22px;">가</span>
             <span class="size-val" id="projVal">${projScale}%</span>
@@ -2867,7 +2879,7 @@
   </script>
   <div id="zoomBadge"></div>
   <div id="updBar">
-    <div class="txt">새 버전이 나왔습니다 <span id="updVer"></span><small>눌러서 바로 받기 (몇 초면 끝납니다)</small></div>
+    <div class="txt">SK-hymn 새 버전이 있습니다 <span id="updVer"></span><small>눌러서 바로 받기 (몇 초면 끝납니다)</small></div>
     <button onclick="forceUpdate()">업데이트</button>
     <button class="later" onclick="dismissUpdate()">나중에</button>
   </div>
