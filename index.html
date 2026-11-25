@@ -229,7 +229,7 @@
       display: inline-flex; align-items: center; justify-content: center;
       font-size: 19px; line-height: 1; padding: 3px 7px; border: 0; background: none;
     }
-    .pen-ico { width: 17px; height: 17px; display: block; }
+    .pen-ico { width: 21px; height: 21px; display: block; }
     /* 맨 오른쪽 작은 뒤로가기 */
     .font-btns button.v-back {
       font-size: 13px; font-weight: 700; padding: 5px 9px; border-radius: 7px;
@@ -487,6 +487,18 @@
     .size-row { display: flex; align-items: center; gap: 10px; margin: 6px 0 2px; }
     .size-row input[type=range] { flex: 1; accent-color: var(--primary); }
     .size-row .size-val { font-size: 14.5px; color: var(--sub-text); width: 48px; text-align: right; }
+    /* 설정 창: 제목은 유지하고 설명/값/버튼 등 내용 글자는 18px */
+    .modal.settings-modal .m-note,
+    .modal.settings-modal .size-hint,
+    .modal.settings-modal .size-val,
+    .modal.settings-modal .owner-txt small,
+    .modal.settings-modal .ver-sub,
+    .modal.settings-modal .m-btns button,
+    .modal.settings-modal .m-row small,
+    .modal.settings-modal input[type=text],
+    .modal.settings-modal textarea {
+      font-size: 18px; line-height: 1.5;
+    }
     .size-prev { font-weight: 600; line-height: 1.5; padding: 10px 12px; background: var(--card-bg);
       border: 1px solid var(--border); border-radius: 9px; margin-top: 8px; }
 
@@ -631,7 +643,7 @@
 
   <script>
     // ================== 앱 버전 ==================
-    const APP_VERSION = 'v9.10';
+    const APP_VERSION = 'v10.0';
     const APP_BUILD   = '2026-11-25';
     const APP_NAME    = 'SK-hymn';
 
@@ -2069,7 +2081,7 @@
     }
     function closeModal() {
       const box = $('modalBox'), wrap = $('modalWrap');
-      box.classList.remove('modal-wide');
+      box.classList.remove('modal-wide', 'settings-modal');
       wrap.classList.remove('wrap-wide');
       wrap.style.display = 'none';
     }
@@ -2281,25 +2293,25 @@
         <div class="m-sec">
           <div class="m-sec-title">🔤 글자 크기</div>
           <div class="size-row">
-            <span style="font-size:14.5px;">가</span>
+            <span >가</span>
             <input type="range" id="sizeRange" min="17" max="48" step="1" value="${fontSize}" oninput="setFontSize(this.value)">
             <span style="font-size:22px;">가</span>
             <span class="size-val" id="sizeVal">${fontSize}px</span>
           </div>
-          <div class="size-hint" style="font-size:14px;color:var(--sub-text);margin:2px 0 8px;">가사 화면에서 두 손가락으로 벌리면 바로 커집니다</div>
+          <div class="size-hint" style="color:var(--sub-text);margin:2px 0 8px;">가사 화면에서 두 손가락으로 벌리면 바로 커집니다</div>
           <div class="size-prev" id="sizePrev" style="font-size:${fontSize}px;">주 사랑 안에 우리 함께</div>
           <div class="m-sec-title" style="margin-top:14px;">📏 줄 간격 (행간)</div>
           <div class="size-row">
-            <span style="font-size:14.5px;">좁게</span>
+            <span >좁게</span>
             <input type="range" id="lhRange" min="1.1" max="2.4" step="0.05" value="${lineH}" oninput="setLineH(this.value)">
-            <span style="font-size:14.5px;">넓게</span>
+            <span >넓게</span>
             <span class="size-val" id="lhVal">${lineH.toFixed(2)}</span>
           </div>
           <div class="m-sec-title" style="margin-top:14px;">↕️ 절과 절 사이 간격</div>
           <div class="size-row">
-            <span style="font-size:14.5px;">붙게</span>
+            <span >붙게</span>
             <input type="range" id="gapRange" min="0" max="3" step="0.1" value="${verseGap}" oninput="setVerseGap(this.value)">
-            <span style="font-size:14.5px;">넓게</span>
+            <span >넓게</span>
             <span class="size-val" id="gapVal">${verseGap.toFixed(1)}</span>
           </div>
           <div class="size-prev2" id="gapPrev" style="font-size:${Math.min(fontSize,20)}px;">
@@ -2308,7 +2320,7 @@
           </div>
           <div class="m-sec-title" style="margin-top:14px;">📽️ 프로젝터 글자 크기</div>
           <div class="size-row">
-            <span style="font-size:14.5px;">가</span>
+            <span >가</span>
             <input type="range" id="projRange" min="60" max="220" step="5" value="${projScale}" oninput="setProjSize(this.value)">
             <span style="font-size:22px;">가</span>
             <span class="size-val" id="projVal">${projScale}%</span>
@@ -2339,6 +2351,7 @@
           </div>
         </div>
       `);
+      $('modalBox').classList.add('settings-modal');
       window._backupData = backupData;
     }
     // 버전 영역을 7번 누르면 저장된 오프라인 캐시를 비우고 최신 파일을 다시 받음
